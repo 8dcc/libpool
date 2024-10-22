@@ -1,0 +1,34 @@
+#+title: Title (WIP)
+#+options: toc:nil
+#+startup: showeverything
+#+author: 8dcc
+
+#+begin_comment
+*TODO*: Change project-name and title
+*TODO*: Change output.out in Makefile
+#+end_comment
+
+I am a short description.
+
+This project was generated from a template, and the initial changes have not
+been pushed yet.
+
+* Building
+
+Clone the repository and build the project using =make=.
+
+#+begin_src bash
+git clone https://github.com/8dcc/project-name
+cd project-name
+make
+# ...
+#+end_src
+
+* Usage
+
+For more information about the program, run it with the =--help= argument.
+
+#+begin_src bash
+./project-name.out --help
+# ...
+#+end_src
