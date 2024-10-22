@@ -16,16 +16,26 @@ having a /fixed pool size/. It allows the user to allocate and free memory block
 The [[file:src/libpool.c][code]] of the allocator is heavily commented, so it should be easy to
 understand how everything works, and why it is so efficient.
 
-This library uses very little memory, and doesn't depend on any specific
-allocation method. When calling =pool_new= (described below), a very small =Pool=
-structure is allocated, along with the pool itself. Free chunks are used to
-store information, so the memory impact is minimal.
+This library uses very little memory: When calling =pool_new= (described below), a
+very small =Pool= structure is allocated, along with the pool itself. Free chunks
+are used to store information, so the memory impact is minimal.
+
+The library doesn't have any dependencies, not even to the standard C library
+(as long as it's compiled with =LIBPOOL_NO_STDLIB= defined). For more information,
+see the /Usage/ section below.
 
 * Usage
 
 If you want to use this library, simply copy the detour source and headers to
 your project, include the =libpool.h= header in your source files and compile the
 =libpool.c= source along with the rest of your code.
+
+The library doesn't depend on any specific allocation method; it uses two
+function pointers, =pool_ext_alloc= and =pool_ext_free= (which by default point to
+=malloc= and =free=) for allocating the =Pool= structures and the pools
+themselves. The =libpool.c= source can be compiled with =LIBPOOL_NO_STDLIB= defined,
+and these pointers won't be initialized. It's up to the user to specify a valid
+function for allocating and freeing memory.
 
 This is the basic process for using this allocator, using the functions
 described below:
@@ -38,10 +48,6 @@ described below:
 4. When the pool itself is no longer needed, close it.
 
 For a full example, see [[file:src/main.c][src/main.c]].
-
-#+begin_comment org
-TODO: Note about different allocation types for =pool_new=.
-#+end_comment
 
 * Functions
 
