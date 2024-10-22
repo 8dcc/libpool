@@ -24,6 +24,19 @@
 typedef struct Pool Pool;
 
 /*
+ * External functions for allocating and freeing system memory. Used by
+ * `pool_new' and `pool_close'.
+ *
+ * If `LIBPOOL_NO_STDLIB' is defined, they are set to NULL, so the user must
+ * initialize them. Otherwise, their default value is `malloc' and `free', from
+ * the <stdlib.h> header.
+ */
+typedef void* (*PoolAllocFuncPtr)(size_t);
+typedef void (*PoolFreeFuncPtr)(void*);
+extern PoolAllocFuncPtr pool_ext_alloc;
+extern PoolFreeFuncPtr pool_ext_free;
+
+/*
  * Allocate and initialize a new `Pool' structure, with the specified number of
  * chunks, each with the specified size. If the initialization fails, NULL is
  * returned.

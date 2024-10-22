@@ -18,13 +18,19 @@
 
 #include <stddef.h>
 
-/*
- * TODO: More allocation types for `pool_new'. (malloc, alloca, etc.)
- */
-#include <stdlib.h>
-
 /* NOTE: Remember to change this path if you move the header */
 #include "libpool.h"
+
+#if defined(LIBPOOL_NO_STDLIB)
+PoolAllocFuncPtr pool_ext_alloc = NULL;
+PoolFreeFuncPtr pool_ext_free   = NULL;
+#else
+#include <stdlib.h>
+PoolAllocFuncPtr pool_ext_alloc = malloc;
+PoolFreeFuncPtr pool_ext_free   = free;
+#endif /* LIBPOOL_NO_STDLIB */
+
+/*----------------------------------------------------------------------------*/
 
 /*
  * The actual pool structure, which contains a pointer to the first chunk, and
@@ -44,10 +50,9 @@ struct Pool {
 /*----------------------------------------------------------------------------*/
 
 /*
- * TODO: Mention different allocation methods, after adding them.
- *
- * We allocate a `Pool' structure, and an array of chunks. You can think of a
- * chunk as the following structure:
+ * We use an exteran allocation function (by default `malloc', but can be
+ * overwritten by user) to allocate a `Pool' structure, and the array of
+ * chunks. You can think of a chunk as the following structure:
  *
  *     struct Chunk {
  *         union {
@@ -93,13 +98,13 @@ Pool* pool_new(size_t pool_sz, size_t chunk_sz) {
     if (pool_sz == 0 || chunk_sz < sizeof(void*))
         return NULL;
 
-    pool = malloc(sizeof(Pool));
+    pool = pool_ext_alloc(sizeof(Pool));
     if (pool == NULL)
         return NULL;
 
-    pool->chunk_arr = pool->free_chunk = malloc(pool_sz * chunk_sz);
+    pool->chunk_arr = pool->free_chunk = pool_ext_alloc(pool_sz * chunk_sz);
     if (pool->chunk_arr == NULL) {
-        free(pool);
+        pool_ext_free(pool);
         return NULL;
     }
 
@@ -120,8 +125,8 @@ void pool_close(Pool* pool) {
     if (pool == NULL)
         return;
 
-    free(pool->chunk_arr);
-    free(pool);
+    pool_ext_free(pool->chunk_arr);
+    pool_ext_free(pool);
 }
 
 /*----------------------------------------------------------------------------*/
