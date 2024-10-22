@@ -1,34 +1,104 @@
-#+title: Title (WIP)
+#+title: libpool
 #+options: toc:nil
 #+startup: showeverything
 #+author: 8dcc
 
-#+begin_comment
-*TODO*: Change project-name and title
-*TODO*: Change output.out in Makefile
+*Tiny (ANSI) C library for pool allocation.*
+
+This library implements a very simple [[https://en.wikipedia.org/wiki/Memory_pool][pool allocator]] in ANSI C. It is inspired
+by [[http://dmitrysoshnikov.com/compilers/writing-a-pool-allocator/][Dmitry Soshnikov's article]].
+
+Similarly to =malloc=, a pool allocator allows the user to allocate memory at run
+time. The pool allocator, however, is much faster than =malloc=, at the cost of
+having a /fixed pool size/. It allows the user to allocate and free memory blocks
+(referred to as /chunks/, from now on) in /O(1)/ linear time.
+
+The [[file:src/libpool.c][code]] of the allocator is heavily commented, so it should be easy to
+understand how everything works, and why it is so efficient.
+
+This library uses very little memory, and doesn't depend on any specific
+allocation method. When calling =pool_new= (described below), a very small =Pool=
+structure is allocated, along with the pool itself. Free chunks are used to
+store information, so the memory impact is minimal.
+
+* Usage
+
+If you want to use this library, simply copy the detour source and headers to
+your project, include the =libpool.h= header in your source files and compile the
+=libpool.c= source along with the rest of your code.
+
+This is the basic process for using this allocator, using the functions
+described below:
+
+1. Create a new pool, specifying the number of elements and the size of each
+   element.
+2. Allocate necessary chunks from the pool, and use them.
+3. When a chunk is no longer needed, free it so it can be used by subsequent
+   allocations.
+4. When the pool itself is no longer needed, close it.
+
+For a full example, see [[file:src/main.c][src/main.c]].
+
+#+begin_comment org
+TODO: Note about different allocation types for =pool_new=.
 #+end_comment
 
-I am a short description.
+* Functions
 
-This project was generated from a template, and the initial changes have not
-been pushed yet.
+This library consists of only 4 functions:
 
-* Building
+- Function: =pool_new= ::
+
+  Allocate and initialize a new =Pool= structure, with the specified number of
+  chunks, each with the specified size. If the initialization fails, =NULL= is
+  returned.
+
+  This function will allocate a =Pool= structure, along with the array of chunks
+  used for later allocations. The caller must free the returned pointer using
+  =pool_close=.
+
+  Note that the =chunk_sz= argument must be greater or equal than
+  =sizeof(void*)=. For more information, see the /Caveats/ section.
+
+- Function: =pool_close= ::
+
+  Free all data in a =Pool= structure, along with the structure itself. After a
+  pool is closed, all data previously allocated from that pool (with =pool_alloc=)
+  becomes unusable.
+
+  Allows =NULL= as the argument.
+
+- Function: =pool_alloc= ::
+
+  Allocate a fixed-size chunk from the specified pool. If no chunks are
+  available, =NULL= is returned.
+
+- Function: =pool_free= ::
+
+  Free a fixed-size chunk from the specified pool. Allows =NULL= as both =pool= and
+  =ptr= arguments.
+
+* Building the example
 
 Clone the repository and build the project using =make=.
 
 #+begin_src bash
-git clone https://github.com/8dcc/project-name
-cd project-name
+git clone https://github.com/8dcc/libpool
+cd libpool
 make
 # ...
 #+end_src
 
-* Usage
-
-For more information about the program, run it with the =--help= argument.
+Then, run =libpool-test.out=.
 
 #+begin_src bash
-./project-name.out --help
+./libpool-test.out
 # ...
 #+end_src
+
+* Caveats
+
+When creating a new pool, each element needs to be greater or equal to the size
+of =void*=. This is necessary because the implementation uses free chunks to build
+a linked list, which is what makes the library so efficient. If the =chunk_sz=
+parameter of =pool_new= is smaller than =sizeof(void*)=, it will return =NULL=.
