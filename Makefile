@@ -1,13 +1,12 @@
 
 CC=gcc
-CFLAGS=-std=c99 -Wall -Wextra -Wpedantic -ggdb3
+CFLAGS=-ansi -Wall -Wextra -Wpedantic -ggdb3
 LDLIBS=
 
-# TODO: Add object files and rename
-SRCS=main.c
+SRCS=main.c libpool.c
 OBJS=$(addprefix obj/, $(addsuffix .o, $(SRCS)))
 
-BIN=output.out
+BIN=libpool-test.out
 
 #-------------------------------------------------------------------------------
 
