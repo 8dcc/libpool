@@ -189,8 +189,6 @@ Pool* pool_new(size_t pool_sz, size_t chunk_sz) {
  *
  * Finally, we free the old chunk array, and update the array pointer inside the
  * `Pool' structure.
- *
- * TODO: Remove comments from function body.
  */
 bool pool_resize(Pool* pool, size_t new_pool_sz) {
     char* new_arr;
@@ -208,23 +206,18 @@ bool pool_resize(Pool* pool, size_t new_pool_sz) {
     if (new_arr == NULL)
         return false;
 
-    /* First, copy everything literally, including pointers to the old array */
     pool_ext_memcpy(new_arr, pool->chunk_arr, pool->pool_sz * pool->chunk_sz);
 
-    /* Link the new free chunks */
     for (i = pool->pool_sz; i < new_pool_sz - 1; i++)
         *(void**)(new_arr + i * pool->chunk_sz) =
           new_arr + (i + 1) * pool->chunk_sz;
     *(void**)(new_arr + (new_pool_sz - 1) * pool->chunk_sz) = NULL;
 
-    /* Offset to the last chunk of the old array */
     first_new_chunk = new_arr + old_byte_size;
 
     if (pool->free_chunk == NULL) {
-        /* Simply set linked list of new chunks as the new list */
         pool->free_chunk = first_new_chunk;
     } else {
-        /* Update the old linked list with pointers to the new array */
         for (cur_free = pool->free_chunk; *(void**)cur_free != NULL;
              cur_free = *(void**)cur_free) {
             off_cur = (uintptr_t)cur_free - (uintptr_t)pool->chunk_arr;
@@ -233,17 +226,12 @@ bool pool_resize(Pool* pool, size_t new_pool_sz) {
             *(void**)(new_arr + off_cur) = (void*)(new_arr + off_next);
         }
 
-        /* Append linked list of new chunks to the end of old list */
         *(void**)(new_arr + off_next) = first_new_chunk;
 
-        /*
-         * Set the start of the new linked list to the pointer in the new array
-         */
         off_cur = (uintptr_t)pool->free_chunk - (uintptr_t)pool->chunk_arr;
         pool->free_chunk = new_arr + off_cur;
     }
 
-    /* We are done with the old array */
     pool_ext_free(pool->chunk_arr);
     pool->chunk_arr = new_arr;
 
