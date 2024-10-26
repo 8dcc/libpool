@@ -43,8 +43,8 @@ PoolFreeFuncPtr pool_ext_free   = free;
  * pointer always points to a free chunk without needing to iterate anything.
  */
 struct Pool {
-    void* chunk_arr;
     void* free_chunk;
+    void* chunk_arr;
 };
 
 /*----------------------------------------------------------------------------*/
