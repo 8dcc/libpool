@@ -52,16 +52,14 @@ struct Pool {
 /*
  * We use an exteran allocation function (by default `malloc', but can be
  * overwritten by user) to allocate a `Pool' structure, and the array of
- * chunks. You can think of a chunk as the following structure:
+ * chunks. You can think of a chunk as the following union:
  *
- *     struct Chunk {
- *         union {
- *             struct Chunk* next_free;
- *             char user_data[CHUNK_SZ];
- *         } val;
+ *     union Chunk {
+ *         union Chunk* next_free;
+ *         char user_data[CHUNK_SZ];
  *     };
  *
- * In this hypothetical struct, the data in a non-free chunk will be overwritten
+ * In this hypothetical union, the data in a non-free chunk will be overwritten
  * by the user, in the `user_data' array, where `CHUNK_SZ' was specified by the
  * caller of `pool_new':
  *
@@ -69,7 +67,7 @@ struct Pool {
  *   | <user-data> |  | <user-data> |  | <user-data> |  | <user-data> |
  *   +-------------+  +-------------+  +-------------+  +-------------+
  *
- * However, if the chunk is free, the structure uses the `val.next_free' pointer
+ * However, if the chunk is free, the union uses the `Chunk.next_free' pointer
  * to build a linked list of available chunks, shown below. This linked list is
  * built once, inside this `pool_new' function, and it is the only time when the
  * library has to iterate the `Chunk' array. The linked list will be modified by
