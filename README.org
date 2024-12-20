@@ -1,12 +1,15 @@
-#+title: libpool
-#+options: toc:nil
-#+startup: showeverything
-#+author: 8dcc
+#+TITLE: libpool
+#+AUTHOR: 8dcc
+#+OPTIONS: toc:nil
+#+STARTUP: showeverything
 
 *Tiny (ANSI) C library for pool allocation.*
 
-This library implements a very simple [[https://en.wikipedia.org/wiki/Memory_pool][pool allocator]] in ANSI C. It is inspired
-by [[http://dmitrysoshnikov.com/compilers/writing-a-pool-allocator/][Dmitry Soshnikov's article]].
+This library implements a very simple [[https://en.wikipedia.org/wiki/Memory_pool][pool allocator]] in ANSI C. This library was
+originally inspired by [[http://dmitrysoshnikov.com/compilers/writing-a-pool-allocator/][Dmitry Soshnikov's article]].
+
+Below is a simple explanation of how the allocator works, but more details about
+a sample implementation can be found in the [[https://8dcc.github.io/programming/pool-allocator.html][article on my blog]].
 
 Similarly to =malloc=, a pool allocator allows the user to allocate memory at run
 time. The pool allocator, however, is much faster than =malloc=, at the cost of
