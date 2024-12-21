@@ -148,7 +148,7 @@ Pool* pool_new(size_t pool_sz, size_t chunk_sz) {
  *   | ? |    |  | <data> |  | ? |    |  | X |    |  |        |  |        |
  *   +--------+  +--------+  +--------+  +--------+  +--------+  +--------+
  *
- * Where '?' represents invalid pointers, that still have addresses from the old
+ * Where '?' represents invalid pointers that still have addresses from the old
  * array.
  *
  * Now we should link the new free chunks we allocated, in this case the last
@@ -187,6 +187,9 @@ Pool* pool_new(size_t pool_sz, size_t chunk_sz) {
  *
  * Finally, we free the old chunk array, and update the array pointer inside the
  * `Pool' structure.
+ *
+ * FIXME: The pointers returned by `pool_alloc', which the user now owns, also
+ * become invalid, since they point to the old array.
  */
 bool pool_resize(Pool* pool, size_t new_pool_sz) {
     char* new_arr;
