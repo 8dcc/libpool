@@ -68,32 +68,12 @@ struct Pool {
  *
  * In this hypothetical union, the data in a non-free chunk will be overwritten
  * by the user, in the `user_data' array, where `CHUNK_SZ' was specified by the
- * caller of `pool_new':
+ * caller of `pool_new'. However, if the chunk is free, the union uses the
+ * `Chunk.next_free' pointer to build a linked list of available chunks, shown
+ * below.
  *
- *   +-------------+  +-------------+  +-------------+  +-------------+
- *   | <user-data> |  | <user-data> |  | <user-data> |  | <user-data> |
- *   +-------------+  +-------------+  +-------------+  +-------------+
- *
- * However, if the chunk is free, the union uses the `Chunk.next_free' pointer
- * to build a linked list of available chunks, shown below. This linked list is
- * built once, inside this `pool_new' function, and it is the only time when the
- * library has to iterate the `Chunk' array. The linked list will be modified by
- * `pool_alloc' and `pool_free', in O(1) time.
- *
- * Therefore, after the linked list is built, a pointer to the first `Chunk' is
- * stored inside the `Pool.free_chunk' member:
- *
- *   +-------------+  +-------------+  +-------------+  +-------------+
- *   | * |         |  | * |         |  | * |         |  | X |         |
- *   +-------------+  +-------------+  +-------------+  +-------------+
- *   ^ |              ^ |              ^ |              ^
- *   | '--------------' '--------------' '--------------'
- *   |
- *   '-- (Pool.free_chunk)
- *
- * Where '*' represents a valid pointer and 'X' represents NULL (the end of the
- * list). For more information on how this `free_chunk' pointer is used, see
- * `pool_alloc'.
+ * This is explained in more detail (and with diagrams) in my blog article:
+ * https://8dcc.github.io/programming/pool-allocator.html
  */
 Pool* pool_new(size_t pool_sz, size_t chunk_sz) {
     Pool* pool;
@@ -253,26 +233,7 @@ void pool_close(Pool* pool) {
  * The allocation process is very simple and fast. Since the `pool' has a
  * pointer to the start of a linked list of free (hypothetical) `Chunk'
  * structures, we can just return that pointer, and set the new start of the
- * linked list to the second item of the old list. For example, this is how the
- * linked list would look before the allocation:
- *
- *   +-------------+  +-------------+  +-------------+  +-------------+
- *   | * |         |  | * |         |  | * |         |  | X |         |
- *   +-------------+  +-------------+  +-------------+  +-------------+
- *   ^ |              ^ |              ^ |              ^
- *   | '--------------' '--------------' '--------------'
- *   |
- *   '-- (pool.free_chunk)
- *
- * And this is how it would look after the allocation:
- *
- *   +-------------+  +-------------+  +-------------+  +-------------+
- *   | <user-data> |  | * |         |  | * |         |  | X |         |
- *   +-------------+  +-------------+  +-------------+  +-------------+
- *                    ^ |              ^ |              ^
- *                    | '--------------' '--------------'
- *                    |
- *                    '-- (pool.free_chunk)
+ * linked list to the second item of the old list.
  */
 void* pool_alloc(Pool* pool) {
     void* result;
@@ -287,31 +248,7 @@ void* pool_alloc(Pool* pool) {
 
 /*
  * Note that, since we are using a linked list, the caller doesn't need to free
- * in the same order that used when allocating. For example, this is how the
- * linked list would look before the free:
- *
- *   (A)              (B)              (C)              (D)
- *   +-------------+  +-------------+  +-------------+  +-------------+
- *   | <user-data> |  | <user-data> |  | * |         |  | X |         |
- *   +-------------+  +-------------+  +-------------+  +-------------+
- *                                     ^ |              ^
- *                                     | '--------------'
- *                                     |
- *                                     '-- (pool.free_chunk)
- *
- * And this is how it would look after freeing chunk A:
- *
- *   (A)              (B)              (C)              (D)
- *   +-------------+  +-------------+  +-------------+  +-------------+
- *   | * |         |  | <user-data> |  | * |         |  | X |         |
- *   +-------------+  +-------------+  +-------------+  +-------------+
- *   ^ |                               ^ |              ^
- *   | '-------------------------------' '--------------'
- *   |
- *   '-- (pool.free_chunk)
- *
- * Note how chunk B remains unchanged. If we wanted to free it, we would just
- * have to set chunk A as the (hypothetical) `.next' pointer of chunk B.
+ * in the same order that used when allocating.
  */
 void pool_free(Pool* pool, void* ptr) {
     if (pool == NULL || ptr == NULL)
