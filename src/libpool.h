@@ -34,10 +34,8 @@ typedef struct Pool Pool;
  */
 typedef void* (*PoolAllocFuncPtr)(size_t);
 typedef void (*PoolFreeFuncPtr)(void*);
-typedef void* (*PoolMemcpyFuncPtr)(void*, const void*, size_t);
 extern PoolAllocFuncPtr pool_ext_alloc;
 extern PoolFreeFuncPtr pool_ext_free;
-extern PoolMemcpyFuncPtr pool_ext_memcpy;
 
 /*
  * Allocate and initialize a new `Pool' structure, with the specified number of
@@ -53,12 +51,10 @@ extern PoolMemcpyFuncPtr pool_ext_memcpy;
 Pool* pool_new(size_t pool_sz, size_t chunk_sz);
 
 /*
- * Change the number of chunks in the specified pool. Allocates a new chunk
- * array, and moves the old data to the next one.
+ * Resize the specified `pool', adding `extra_chunk_num' free chunks.
  *
- * Notes:
- *   - Returs true on success, false otherwise.
- *   - The new pool size must be greater or equal than the old one.
+ * On success, it returns true; otherwise, it returns false and leaves the pool
+ * unchanged.
  */
 bool pool_resize(Pool* pool, size_t new_pool_sz);
 

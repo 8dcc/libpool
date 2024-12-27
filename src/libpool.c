@@ -24,18 +24,30 @@
 #include "libpool.h"
 
 #if defined(LIBPOOL_NO_STDLIB)
-PoolAllocFuncPtr pool_ext_alloc   = NULL;
-PoolFreeFuncPtr pool_ext_free     = NULL;
-PoolMemcpyFuncPtr pool_ext_memcpy = NULL;
+PoolAllocFuncPtr pool_ext_alloc = NULL;
+PoolFreeFuncPtr pool_ext_free   = NULL;
 #else
 #include <stdlib.h>
 #include <string.h>
-PoolAllocFuncPtr pool_ext_alloc   = malloc;
-PoolFreeFuncPtr pool_ext_free     = free;
-PoolMemcpyFuncPtr pool_ext_memcpy = memcpy;
+PoolAllocFuncPtr pool_ext_alloc = malloc;
+PoolFreeFuncPtr pool_ext_free   = free;
 #endif /* LIBPOOL_NO_STDLIB */
 
 /*----------------------------------------------------------------------------*/
+
+/*
+ * Linked list of pointers, used to store the start of the chunk arrays inside a
+ * pool.
+ *
+ * We need to store them as a linked list, since there can be an arbitrary
+ * number of them, one for each call to `pool_resize' plus the initial one from
+ * `pool_new'. New pointers will be prepended to the linked list.
+ */
+typedef struct LinkedPtr LinkedPtr;
+struct LinkedPtr {
+    LinkedPtr* next;
+    void* ptr;
+};
 
 /*
  * The actual pool structure, which contains a pointer to the first chunk, and
@@ -49,8 +61,7 @@ PoolMemcpyFuncPtr pool_ext_memcpy = memcpy;
  */
 struct Pool {
     void* free_chunk;
-    void* chunk_arr;
-    size_t pool_sz;
+    LinkedPtr* array_starts;
     size_t chunk_sz;
 };
 
@@ -77,7 +88,7 @@ struct Pool {
  */
 Pool* pool_new(size_t pool_sz, size_t chunk_sz) {
     Pool* pool;
-    char* chunk_arr;
+    char* arr;
     size_t i;
 
     if (pool_sz == 0 || chunk_sz < sizeof(void*))
@@ -87,143 +98,99 @@ Pool* pool_new(size_t pool_sz, size_t chunk_sz) {
     if (pool == NULL)
         return NULL;
 
-    pool->chunk_arr = pool_ext_alloc(pool_sz * chunk_sz);
-    if (pool->chunk_arr == NULL) {
+    pool->array_starts = malloc(sizeof(LinkedPtr));
+    if (pool->array_starts == NULL) {
         pool_ext_free(pool);
         return NULL;
     }
 
-    pool->free_chunk = pool->chunk_arr;
-    pool->pool_sz    = pool_sz;
-    pool->chunk_sz   = chunk_sz;
+    arr = pool_ext_alloc(pool_sz * chunk_sz);
+    if (arr == NULL) {
+        pool_ext_free(pool->array_starts);
+        pool_ext_free(pool);
+        return NULL;
+    }
 
     /*
      * Build the linked list. Use the first N bytes of the free chunks for
      * storing the (hypothetical) `.next' pointer. This is why `chunk_sz' must
      * be greater or equal than `sizeof(void*)'.
      */
-    chunk_arr = pool->chunk_arr;
     for (i = 0; i < pool_sz - 1; i++)
-        *(void**)(chunk_arr + i * chunk_sz) = chunk_arr + (i + 1) * chunk_sz;
-    *(void**)(chunk_arr + (pool_sz - 1) * chunk_sz) = NULL;
+        *(void**)(arr + i * chunk_sz) = arr + (i + 1) * chunk_sz;
+    *(void**)(arr + (pool_sz - 1) * chunk_sz) = NULL;
+
+    pool->free_chunk         = arr;
+    pool->array_starts->next = NULL;
+    pool->array_starts->ptr  = arr;
+    pool->chunk_sz           = chunk_sz;
 
     return pool;
 }
 
 /*
- * Assume this is the original array, from `pool.chunk_arr':
+ * Resizing the pool simply means allocating a new chunk array, and prepending
+ * it to the `pool->free_chunk' linked list.
  *
- *   +--------+  +--------+  +--------+  +--------+
- *   | * |    |  | <data> |  | * |    |  | X |    |
- *   +--------+  +--------+  +--------+  +--------+
- *   ^ |                     ^ |         ^
- *   | '---------------------' '---------'
- *   |
- *   '-- (pool.free_chunk)
- *
- * After allocating the new array, assuming the user increased the pool size by
- * two, we get:
- *
- *   +--------+  +--------+  +--------+  +--------+  +--------+  +--------+
- *   | ? |    |  | <data> |  | ? |    |  | X |    |  |        |  |        |
- *   +--------+  +--------+  +--------+  +--------+  +--------+  +--------+
- *
- * Where '?' represents invalid pointers that still have addresses from the old
- * array.
- *
- * Now we should link the new free chunks we allocated, in this case the last
- * two:
- *
- *   (A)         (B)         (C)         (D)         (E)         (F)
- *   +--------+  +--------+  +--------+  +--------+  +--------+  +--------+
- *   | ? |    |  | <data> |  | ? |    |  | X |    |  | * |    |  | X |    |
- *   +--------+  +--------+  +--------+  +--------+  +--------+  +--------+
- *                                                     |         ^
- *                                                     '---------'
- *
- * Now we need to check if the old pool had free chunks left. If it didn't, we
- * just set `pool.free_chunk' to the new linked list we just created (in the
- * previous example, chunk F).
- *
- * However, if the old list had free chunks, we need to update the old pointers
- * of the linked list:
- *
- *   +--------+  +--------+  +--------+  +--------+  +--------+  +--------+
- *   | * |    |  | <data> |  | * |    |  | X |    |  | * |    |  | X |    |
- *   +--------+  +--------+  +--------+  +--------+  +--------+  +--------+
- *     |                     ^ |         ^            |          ^
- *     '---------------------' '---------'            '----------'
- *
- * And append the new chunks to the end of the linked list of free chunks. We
- * also update `pool.free_chunk' to the new array:
- *
- *   +--------+  +--------+  +--------+  +--------+  +--------+  +--------+
- *   | * |    |  | <data> |  | * |    |  | * |    |  | * |    |  | X |    |
- *   +--------+  +--------+  +--------+  +--------+  +--------+  +--------+
- *   ^ |                     ^ |         ^ |         ^ |         ^
- *   | '---------------------' '---------' '---------' '---------'
- *   |
- *   '-- (pool.free_chunk)
- *
- * Finally, we free the old chunk array, and update the array pointer inside the
- * `Pool' structure.
- *
- * FIXME: The pointers returned by `pool_alloc', which the user now owns, also
- * become invalid, since they point to the old array.
+ * 1. Allocate a new `LinkedPtr' structure.
+ * 2. Allocate a new chunk array with the specified size.
+ * 3. Link the new array together, just like in `pool_new'.
+ * 4. Prepend the new chunk array to the existing linked list of free chunks.
+ * 5. Prepend the new `LinkedPtr' to the existing linked list of array starts.
  */
-bool pool_resize(Pool* pool, size_t new_pool_sz) {
-    char* new_arr;
-    char* cur_free;
-    void* first_new_chunk;
-    size_t i, off_cur, off_next;
-    const size_t old_byte_size = pool->pool_sz * pool->chunk_sz;
+bool pool_resize(Pool* pool, size_t extra_chunk_num) {
+    LinkedPtr* array_start;
+    char* extra_arr;
+    size_t i;
 
-    if (new_pool_sz < pool->pool_sz)
-        return false;
-    else if (new_pool_sz == pool->pool_sz)
-        return true;
-
-    new_arr = pool_ext_alloc(new_pool_sz * pool->chunk_sz);
-    if (new_arr == NULL)
+    if (pool == NULL || extra_chunk_num <= 0)
         return false;
 
-    pool_ext_memcpy(new_arr, pool->chunk_arr, pool->pool_sz * pool->chunk_sz);
+    array_start = pool_ext_alloc(sizeof(LinkedPtr));
+    if (array_start == NULL)
+        return false;
 
-    for (i = pool->pool_sz; i < new_pool_sz - 1; i++)
-        *(void**)(new_arr + i * pool->chunk_sz) =
-          new_arr + (i + 1) * pool->chunk_sz;
-    *(void**)(new_arr + (new_pool_sz - 1) * pool->chunk_sz) = NULL;
-
-    first_new_chunk = new_arr + old_byte_size;
-
-    if (pool->free_chunk == NULL) {
-        pool->free_chunk = first_new_chunk;
-    } else {
-        for (cur_free = pool->free_chunk; *(void**)cur_free != NULL;
-             cur_free = *(void**)cur_free) {
-            off_cur = (uintptr_t)cur_free - (uintptr_t)pool->chunk_arr;
-            off_next =
-              (uintptr_t)(*(void**)cur_free) - (uintptr_t)pool->chunk_arr;
-            *(void**)(new_arr + off_cur) = (void*)(new_arr + off_next);
-        }
-
-        *(void**)(new_arr + off_next) = first_new_chunk;
-
-        off_cur = (uintptr_t)pool->free_chunk - (uintptr_t)pool->chunk_arr;
-        pool->free_chunk = new_arr + off_cur;
+    extra_arr = pool_ext_alloc(extra_chunk_num * pool->chunk_sz);
+    if (extra_arr == NULL) {
+        pool_ext_free(array_start);
+        return false;
     }
 
-    pool_ext_free(pool->chunk_arr);
-    pool->chunk_arr = new_arr;
+    for (i = 0; i < extra_chunk_num - 1; i++)
+        *(void**)(extra_arr + i * pool->chunk_sz) =
+          extra_arr + (i + 1) * pool->chunk_sz;
+
+    *(void**)(extra_arr + (extra_chunk_num - 1) * pool->chunk_sz) =
+      pool->free_chunk;
+    pool->free_chunk = extra_arr;
+
+    array_start->ptr   = extra_arr;
+    array_start->next  = pool->array_starts;
+    pool->array_starts = array_start;
 
     return true;
 }
 
+/*
+ * When closing the pool, we traverse the list of `LinkedPtr' structures, which
+ * contain the base address of each chunk array. We free the array, and then the
+ * `LinkedPtr' structure itself. Lastly, we free the `Pool' structure.
+ */
 void pool_close(Pool* pool) {
+    LinkedPtr* linkedptr;
+    LinkedPtr* next;
+
     if (pool == NULL)
         return;
 
-    pool_ext_free(pool->chunk_arr);
+    linkedptr = pool->array_starts;
+    while (linkedptr != NULL) {
+        next = linkedptr->next;
+        pool_ext_free(linkedptr->ptr);
+        pool_ext_free(linkedptr);
+        linkedptr = next;
+    }
+
     pool_ext_free(pool);
 }
 
