@@ -48,13 +48,14 @@ described below:
 2. Allocate necessary chunks from the pool, and use them.
 3. When a chunk is no longer needed, free it so it can be used by subsequent
    allocations.
-4. When the pool itself is no longer needed, close it.
+4. Optionally expand the pool, if you run out of chunks.
+5. When the pool itself is no longer needed, close it.
 
 For a full example, see [[file:src/main.c][src/main.c]].
 
 * Functions
 
-This library consists of only 4 functions:
+This library consists of only 5 functions:
 
 - Function: =pool_new= ::
 
@@ -68,6 +69,13 @@ This library consists of only 4 functions:
 
   Note that the =chunk_sz= argument must be greater or equal than
   =sizeof(void*)=. For more information, see the /Caveats/ section.
+
+- Function: =pool_expand= ::
+
+  Expand the specified =pool=, adding =extra_chunk_num= free chunks.
+
+  On success, it returns /true/; otherwise, it returns /false/ and leaves the pool
+  unchanged.
 
 - Function: =pool_close= ::
 
