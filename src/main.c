@@ -1,4 +1,6 @@
 
+#include <stddef.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -17,6 +19,7 @@ typedef struct {
 static void test_pool(Pool* pool) {
     MyObject *obj1, *obj2, *obj3;
     size_t i;
+    bool failed_alloc = false;
 
     /*
      * Example allocation. Since the chunks have a fixed type (specified when
@@ -51,12 +54,16 @@ static void test_pool(Pool* pool) {
      * but it's not really leaked to the system because we will `close' the pool
      * later.
      */
-    for (i = 0;; i++) {
+    for (i = 0; i < 35; i++) {
         if (pool_alloc(pool) == NULL) {
-            printf("Failed to allocate chunk at iteration: %lu\n", i);
+            failed_alloc = true;
             break;
         }
     }
+
+    printf((failed_alloc) ? "Failed to allocate chunk at iteration: %lu\n"
+                          : "Successfully allocated %lu chunks.\n",
+           i);
 }
 
 int main(void) {
@@ -94,6 +101,11 @@ int main(void) {
     test_pool(pool1);
     printf("\nTesting second pool, of size %lu:\n", pool2_sz);
     test_pool(pool2);
+
+    printf("\nExpanding first pool by 10 (total %lu) and testing:\n",
+           pool1_sz + 10);
+    pool_resize(pool1, 10);
+    test_pool(pool1);
 
     /*
      * When we are done, we "close" each pool. All previously allocated data

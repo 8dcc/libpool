@@ -20,6 +20,7 @@
 #define POOL_H_ 1
 
 #include <stddef.h>
+#include <stdbool.h>
 
 typedef struct Pool Pool;
 
@@ -38,14 +39,24 @@ extern PoolFreeFuncPtr pool_ext_free;
 
 /*
  * Allocate and initialize a new `Pool' structure, with the specified number of
- * chunks, each with the specified size. If the initialization fails, NULL is
- * returned.
+ * chunks, each with the specified size.
  *
- * The caller must free the returned pointer using `pool_close'.
- *
- * Note that the `chunk_sz' must be greater or equal than `sizeof(void*)'.
+ * Notes:
+ *   - If the initialization fails, NULL is returned.
+ *   - The caller must free the returned pointer using `pool_close'.
+ *   - The `chunk_sz' must be greater or equal than `sizeof(void*)'.
+ *   - The pool size can be updated with `pool_resize', but the chunk size
+ *     cannot be changed.
  */
 Pool* pool_new(size_t pool_sz, size_t chunk_sz);
+
+/*
+ * Resize the specified `pool', adding `extra_chunk_num' free chunks.
+ *
+ * On success, it returns true; otherwise, it returns false and leaves the pool
+ * unchanged.
+ */
+bool pool_resize(Pool* pool, size_t new_pool_sz);
 
 /*
  * Free all data in a `Pool' structure, along with the structure itself. All
