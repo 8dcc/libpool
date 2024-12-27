@@ -104,7 +104,7 @@ int main(void) {
 
     printf("\nExpanding first pool by 10 (total %lu) and testing:\n",
            pool1_sz + 10);
-    pool_resize(pool1, 10);
+    pool_expand(pool1, 10);
     test_pool(pool1);
 
     /*

@@ -39,7 +39,7 @@ PoolFreeFuncPtr pool_ext_free   = free;
  * pool.
  *
  * We need to store them as a linked list, since there can be an arbitrary
- * number of them, one for each call to `pool_resize' plus the initial one from
+ * number of them, one for each call to `pool_expand' plus the initial one from
  * `pool_new'. New pointers will be prepended to the linked list.
  */
 typedef struct LinkedPtr LinkedPtr;
@@ -137,7 +137,7 @@ Pool* pool_new(size_t pool_sz, size_t chunk_sz) {
  * 4. Prepend the new chunk array to the existing linked list of free chunks.
  * 5. Prepend the new `LinkedPtr' to the existing linked list of array starts.
  */
-bool pool_resize(Pool* pool, size_t extra_chunk_num) {
+bool pool_expand(Pool* pool, size_t extra_chunk_num) {
     LinkedPtr* array_start;
     char* extra_arr;
     size_t i;
