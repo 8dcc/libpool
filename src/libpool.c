@@ -28,7 +28,6 @@ PoolAllocFuncPtr pool_ext_alloc = NULL;
 PoolFreeFuncPtr pool_ext_free   = NULL;
 #else
 #include <stdlib.h>
-#include <string.h>
 PoolAllocFuncPtr pool_ext_alloc = malloc;
 PoolFreeFuncPtr pool_ext_free   = free;
 #endif /* LIBPOOL_NO_STDLIB */
