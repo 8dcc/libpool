@@ -51,12 +51,12 @@ extern PoolFreeFuncPtr pool_ext_free;
 Pool* pool_new(size_t pool_sz, size_t chunk_sz);
 
 /*
- * Expand the specified `pool', adding `extra_chunk_num' free chunks.
+ * Expand the specified `pool', adding `extra_sz' free chunks.
  *
  * On success, it returns true; otherwise, it returns false and leaves the pool
  * unchanged.
  */
-bool pool_expand(Pool* pool, size_t new_pool_sz);
+bool pool_expand(Pool* pool, size_t extra_sz);
 
 /*
  * Free all data in a `Pool' structure, along with the structure itself. All

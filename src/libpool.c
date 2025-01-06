@@ -128,7 +128,7 @@ Pool* pool_new(size_t pool_sz, size_t chunk_sz) {
 }
 
 /*
- * Resizing the pool simply means allocating a new chunk array, and prepending
+ * Expanding the pool simply means allocating a new chunk array, and prepending
  * it to the `pool->free_chunk' linked list.
  *
  * 1. Allocate a new `LinkedPtr' structure.
@@ -137,31 +137,30 @@ Pool* pool_new(size_t pool_sz, size_t chunk_sz) {
  * 4. Prepend the new chunk array to the existing linked list of free chunks.
  * 5. Prepend the new `LinkedPtr' to the existing linked list of array starts.
  */
-bool pool_expand(Pool* pool, size_t extra_chunk_num) {
+bool pool_expand(Pool* pool, size_t extra_sz) {
     LinkedPtr* array_start;
     char* extra_arr;
     size_t i;
 
-    if (pool == NULL || extra_chunk_num <= 0)
+    if (pool == NULL || extra_sz <= 0)
         return false;
 
     array_start = pool_ext_alloc(sizeof(LinkedPtr));
     if (array_start == NULL)
         return false;
 
-    extra_arr = pool_ext_alloc(extra_chunk_num * pool->chunk_sz);
+    extra_arr = pool_ext_alloc(extra_sz * pool->chunk_sz);
     if (extra_arr == NULL) {
         pool_ext_free(array_start);
         return false;
     }
 
-    for (i = 0; i < extra_chunk_num - 1; i++)
+    for (i = 0; i < extra_sz - 1; i++)
         *(void**)(extra_arr + i * pool->chunk_sz) =
           extra_arr + (i + 1) * pool->chunk_sz;
 
-    *(void**)(extra_arr + (extra_chunk_num - 1) * pool->chunk_sz) =
-      pool->free_chunk;
-    pool->free_chunk = extra_arr;
+    *(void**)(extra_arr + (extra_sz - 1) * pool->chunk_sz) = pool->free_chunk;
+    pool->free_chunk                                       = extra_arr;
 
     array_start->ptr   = extra_arr;
     array_start->next  = pool->array_starts;
