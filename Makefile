@@ -3,7 +3,7 @@ CC=gcc
 CFLAGS=-ansi -Wall -Wextra -Wpedantic -ggdb3
 LDLIBS=
 
-SRCS=main.c libpool.c
+SRCS=libpool-test.c libpool.c
 OBJS=$(addprefix obj/, $(addsuffix .o, $(SRCS)))
 
 BIN=libpool-test.out
