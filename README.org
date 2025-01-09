@@ -51,7 +51,7 @@ described below:
 4. Optionally expand the pool, if you run out of chunks.
 5. When the pool itself is no longer needed, close it.
 
-For a full example, see [[file:src/main.c][src/main.c]].
+For a full example, see [[file:src/libpool-test.c][src/libpool-test.c]].
 
 * Functions
 
@@ -130,6 +130,21 @@ Then, run =libpool-test.out=.
 ./libpool-test.out
 # ...
 #+end_src
+
+* Benchmarking against =malloc=
+
+You can benchmark the library by running =make benchmark=. These are the results
+in my machine:
+
+#+begin_src bash
+make benchmark
+# ...
+Benchmarking 1100000 allocations of 10000 bytes. Ignoring first 100000 calls.
+Time when using 'malloc'....: 2.46 - 0.22 = 2.24 seconds
+Time when using 'libpool'...: 0.81 - 0.06 = 0.75 seconds
+#+end_src
+
+You can adjust these values in the [[file:benchmark.sh][benchmark.sh]] script.
 
 * Caveats
 
