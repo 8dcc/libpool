@@ -97,7 +97,7 @@ Pool* pool_new(size_t pool_sz, size_t chunk_sz) {
     if (pool == NULL)
         return NULL;
 
-    pool->array_starts = malloc(sizeof(LinkedPtr));
+    pool->array_starts = pool_ext_alloc(sizeof(LinkedPtr));
     if (pool->array_starts == NULL) {
         pool_ext_free(pool);
         return NULL;
