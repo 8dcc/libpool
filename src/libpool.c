@@ -20,9 +20,17 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/* TODO: Don't always include, control with macro */
+#if defined(LIBPOOL_NO_VALGRIND)
+#define VALGRIND_CREATE_MEMPOOL(a, b, c)
+#define VALGRIND_DESTROY_MEMPOOL(a)
+#define VALGRIND_MEMPOOL_ALLOC(a, b, c)
+#define VALGRIND_MEMPOOL_FREE(a, b)
+#define VALGRIND_MAKE_MEM_DEFINED(a, b)
+#define VALGRIND_MAKE_MEM_NOACCESS(a, b)
+#else
 #include <valgrind/valgrind.h>
 #include <valgrind/memcheck.h>
+#endif
 
 /* NOTE: Remember to change this path if you move the header */
 #include "libpool.h"
