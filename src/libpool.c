@@ -20,6 +20,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+/* TODO: Don't always include, control with macro */
+#include <valgrind/valgrind.h>
+#include <valgrind/memcheck.h>
+
 /* NOTE: Remember to change this path if you move the header */
 #include "libpool.h"
 
@@ -124,6 +128,11 @@ Pool* pool_new(size_t pool_sz, size_t chunk_sz) {
     pool->array_starts->arr  = arr;
     pool->chunk_sz           = chunk_sz;
 
+    VALGRIND_MAKE_MEM_NOACCESS(arr, pool_sz * chunk_sz);
+    VALGRIND_MAKE_MEM_NOACCESS(pool->array_starts, sizeof(ArrayStart));
+    VALGRIND_MAKE_MEM_NOACCESS(pool, sizeof(Pool));
+    VALGRIND_CREATE_MEMPOOL(pool, 0, 0);
+
     return pool;
 }
 
@@ -144,6 +153,8 @@ bool pool_expand(Pool* pool, size_t extra_sz) {
 
     if (pool == NULL || extra_sz <= 0)
         return false;
+
+    VALGRIND_MAKE_MEM_DEFINED(pool, sizeof(Pool));
 
     array_start = pool_ext_alloc(sizeof(ArrayStart));
     if (array_start == NULL)
@@ -166,6 +177,10 @@ bool pool_expand(Pool* pool, size_t extra_sz) {
     array_start->next  = pool->array_starts;
     pool->array_starts = array_start;
 
+    VALGRIND_MAKE_MEM_NOACCESS(extra_arr, extra_sz * pool->chunk_sz);
+    VALGRIND_MAKE_MEM_NOACCESS(array_start, sizeof(ArrayStart));
+    VALGRIND_MAKE_MEM_NOACCESS(pool, sizeof(Pool));
+
     return true;
 }
 
@@ -181,14 +196,19 @@ void pool_close(Pool* pool) {
     if (pool == NULL)
         return;
 
+    VALGRIND_MAKE_MEM_DEFINED(pool, sizeof(Pool));
+
     array_start = pool->array_starts;
     while (array_start != NULL) {
+        VALGRIND_MAKE_MEM_DEFINED(array_start, sizeof(ArrayStart));
+
         next = array_start->next;
         pool_ext_free(array_start->arr);
         pool_ext_free(array_start);
         array_start = next;
     }
 
+    VALGRIND_DESTROY_MEMPOOL(pool);
     pool_ext_free(pool);
 }
 
@@ -203,11 +223,21 @@ void pool_close(Pool* pool) {
 void* pool_alloc(Pool* pool) {
     void* result;
 
-    if (pool == NULL || pool->free_chunk == NULL)
+    if (pool == NULL)
         return NULL;
+    VALGRIND_MAKE_MEM_DEFINED(pool, sizeof(Pool));
+
+    if (pool->free_chunk == NULL)
+        return NULL;
+    VALGRIND_MAKE_MEM_DEFINED(pool->free_chunk, sizeof(void**));
 
     result           = pool->free_chunk;
     pool->free_chunk = *(void**)pool->free_chunk;
+
+    VALGRIND_MEMPOOL_ALLOC(pool, result, pool->chunk_sz);
+    VALGRIND_MAKE_MEM_NOACCESS(pool->free_chunk, sizeof(void**));
+    VALGRIND_MAKE_MEM_NOACCESS(pool, sizeof(Pool));
+
     return result;
 }
 
@@ -219,6 +249,11 @@ void pool_free(Pool* pool, void* ptr) {
     if (pool == NULL || ptr == NULL)
         return;
 
+    VALGRIND_MAKE_MEM_DEFINED(pool, sizeof(Pool));
+
     *(void**)ptr     = pool->free_chunk;
     pool->free_chunk = ptr;
+
+    VALGRIND_MAKE_MEM_NOACCESS(pool, sizeof(Pool));
+    VALGRIND_MEMPOOL_FREE(pool, ptr);
 }
