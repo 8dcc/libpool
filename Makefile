@@ -3,24 +3,24 @@ CC=gcc
 CFLAGS=-ansi -Wall -Wextra -Wpedantic -ggdb3
 LDLIBS=
 
-SRCS=libpool-test.c libpool.c
-OBJS=$(addprefix obj/, $(addsuffix .o, $(SRCS)))
-
-BIN=libpool-test.out
+BINS=libpool-test.out benchmark.out
 
 #-------------------------------------------------------------------------------
 
-.PHONY: all clean
+.PHONY: all benchmark clean
 
-all: $(BIN)
+all: libpool-test.out
+
+benchmark: benchmark.out
+	./benchmark.sh
 
 clean:
-	rm -f $(OBJS)
-	rm -f $(BIN)
+	rm -f obj/*.o
+	rm -f libpool-test.out benchmark.out
 
 #-------------------------------------------------------------------------------
 
-$(BIN): $(OBJS)
+$(BINS): %.out: obj/%.c.o obj/libpool.c.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
 
 obj/%.c.o : src/%.c
