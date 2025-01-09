@@ -20,18 +20,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#if defined(LIBPOOL_NO_VALGRIND)
-#define VALGRIND_CREATE_MEMPOOL(a, b, c)
-#define VALGRIND_DESTROY_MEMPOOL(a)
-#define VALGRIND_MEMPOOL_ALLOC(a, b, c)
-#define VALGRIND_MEMPOOL_FREE(a, b)
-#define VALGRIND_MAKE_MEM_DEFINED(a, b)
-#define VALGRIND_MAKE_MEM_NOACCESS(a, b)
-#else
-#include <valgrind/valgrind.h>
-#include <valgrind/memcheck.h>
-#endif
-
 /* NOTE: Remember to change this path if you move the header */
 #include "libpool.h"
 
@@ -43,6 +31,18 @@ PoolFreeFuncPtr pool_ext_free   = NULL;
 PoolAllocFuncPtr pool_ext_alloc = malloc;
 PoolFreeFuncPtr pool_ext_free   = free;
 #endif /* LIBPOOL_NO_STDLIB */
+
+#if defined(LIBPOOL_NO_VALGRIND)
+#define VALGRIND_CREATE_MEMPOOL(a, b, c)
+#define VALGRIND_DESTROY_MEMPOOL(a)
+#define VALGRIND_MEMPOOL_ALLOC(a, b, c)
+#define VALGRIND_MEMPOOL_FREE(a, b)
+#define VALGRIND_MAKE_MEM_DEFINED(a, b)
+#define VALGRIND_MAKE_MEM_NOACCESS(a, b)
+#else
+#include <valgrind/valgrind.h>
+#include <valgrind/memcheck.h>
+#endif
 
 /*----------------------------------------------------------------------------*/
 
