@@ -45,7 +45,7 @@ PoolFreeFuncPtr pool_ext_free   = free;
 typedef struct ArrayStart ArrayStart;
 struct ArrayStart {
     ArrayStart* next;
-    void* ptr;
+    void* arr;
 };
 
 /*
@@ -121,7 +121,7 @@ Pool* pool_new(size_t pool_sz, size_t chunk_sz) {
 
     pool->free_chunk         = arr;
     pool->array_starts->next = NULL;
-    pool->array_starts->ptr  = arr;
+    pool->array_starts->arr  = arr;
     pool->chunk_sz           = chunk_sz;
 
     return pool;
@@ -162,7 +162,7 @@ bool pool_expand(Pool* pool, size_t extra_sz) {
     *(void**)(extra_arr + (extra_sz - 1) * pool->chunk_sz) = pool->free_chunk;
     pool->free_chunk                                       = extra_arr;
 
-    array_start->ptr   = extra_arr;
+    array_start->arr   = extra_arr;
     array_start->next  = pool->array_starts;
     pool->array_starts = array_start;
 
@@ -184,7 +184,7 @@ void pool_close(Pool* pool) {
     array_start = pool->array_starts;
     while (array_start != NULL) {
         next = array_start->next;
-        pool_ext_free(array_start->ptr);
+        pool_ext_free(array_start->arr);
         pool_ext_free(array_start);
         array_start = next;
     }
