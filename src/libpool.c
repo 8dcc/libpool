@@ -42,9 +42,9 @@ PoolFreeFuncPtr pool_ext_free   = free;
  * number of them, one for each call to `pool_expand' plus the initial one from
  * `pool_new'. New pointers will be prepended to the linked list.
  */
-typedef struct LinkedPtr LinkedPtr;
-struct LinkedPtr {
-    LinkedPtr* next;
+typedef struct ArrayStart ArrayStart;
+struct ArrayStart {
+    ArrayStart* next;
     void* ptr;
 };
 
@@ -60,7 +60,7 @@ struct LinkedPtr {
  */
 struct Pool {
     void* free_chunk;
-    LinkedPtr* array_starts;
+    ArrayStart* array_starts;
     size_t chunk_sz;
 };
 
@@ -97,7 +97,7 @@ Pool* pool_new(size_t pool_sz, size_t chunk_sz) {
     if (pool == NULL)
         return NULL;
 
-    pool->array_starts = pool_ext_alloc(sizeof(LinkedPtr));
+    pool->array_starts = pool_ext_alloc(sizeof(ArrayStart));
     if (pool->array_starts == NULL) {
         pool_ext_free(pool);
         return NULL;
@@ -131,21 +131,21 @@ Pool* pool_new(size_t pool_sz, size_t chunk_sz) {
  * Expanding the pool simply means allocating a new chunk array, and prepending
  * it to the `pool->free_chunk' linked list.
  *
- * 1. Allocate a new `LinkedPtr' structure.
+ * 1. Allocate a new `ArrayStart' structure.
  * 2. Allocate a new chunk array with the specified size.
  * 3. Link the new array together, just like in `pool_new'.
  * 4. Prepend the new chunk array to the existing linked list of free chunks.
- * 5. Prepend the new `LinkedPtr' to the existing linked list of array starts.
+ * 5. Prepend the new `ArrayStart' to the existing linked list of array starts.
  */
 bool pool_expand(Pool* pool, size_t extra_sz) {
-    LinkedPtr* array_start;
+    ArrayStart* array_start;
     char* extra_arr;
     size_t i;
 
     if (pool == NULL || extra_sz <= 0)
         return false;
 
-    array_start = pool_ext_alloc(sizeof(LinkedPtr));
+    array_start = pool_ext_alloc(sizeof(ArrayStart));
     if (array_start == NULL)
         return false;
 
@@ -170,23 +170,23 @@ bool pool_expand(Pool* pool, size_t extra_sz) {
 }
 
 /*
- * When closing the pool, we traverse the list of `LinkedPtr' structures, which
+ * When closing the pool, we traverse the list of `ArrayStart' structures, which
  * contain the base address of each chunk array. We free the array, and then the
- * `LinkedPtr' structure itself. Lastly, we free the `Pool' structure.
+ * `ArrayStart' structure itself. Lastly, we free the `Pool' structure.
  */
 void pool_close(Pool* pool) {
-    LinkedPtr* linkedptr;
-    LinkedPtr* next;
+    ArrayStart* array_start;
+    ArrayStart* next;
 
     if (pool == NULL)
         return;
 
-    linkedptr = pool->array_starts;
-    while (linkedptr != NULL) {
-        next = linkedptr->next;
-        pool_ext_free(linkedptr->ptr);
-        pool_ext_free(linkedptr);
-        linkedptr = next;
+    array_start = pool->array_starts;
+    while (array_start != NULL) {
+        next = array_start->next;
+        pool_ext_free(array_start->ptr);
+        pool_ext_free(array_start);
+        array_start = next;
     }
 
     pool_ext_free(pool);
