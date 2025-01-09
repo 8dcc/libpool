@@ -72,7 +72,7 @@ This library consists of only 5 functions:
 
 - Function: =pool_expand= ::
 
-  Expand the specified =pool=, adding =extra_chunk_num= free chunks.
+  Expand the specified =pool=, adding =extra_sz= free chunks.
 
   On success, it returns /true/; otherwise, it returns /false/ and leaves the pool
   unchanged.
