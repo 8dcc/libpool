@@ -95,6 +95,24 @@ This library consists of only 5 functions:
   Free a fixed-size chunk from the specified pool. Allows =NULL= as both =pool= and
   =ptr= arguments.
 
+* Valgrind support
+
+This library supports the [[https://valgrind.org/][valgrind]] API, unless it has been compiled with the
+=LIBPOOL_NO_VALGRIND= macro defined. This allows the programmer to check for
+memory leaks and invalid memory accesses in his program (among other things)
+with the =valgrind= tool, just like it would with a program that uses =malloc=. Note
+that the valgrind macros don't affect the behavior of the program when it's not
+running under valgrind.
+
+For example, after compiling the test program with valgrind disabled
+(i.e. =LIBPOOL_NO_VALGRIND= defined), if we run =valgrind ./libpool-test.out= we
+will see 9 allocations, corresponding to the =malloc= calls. However, if we enable
+valgrind support, we will see 111 allocations because it also checked the calls
+to =pool_alloc= and =pool_free=.
+
+You might need to install some =valgrind-devel= package in your system in order to
+include the necessary headers.
+
 * Building the example
 
 Clone the repository and build the project using =make=.
