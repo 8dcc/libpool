@@ -26,7 +26,7 @@ OUTPUT_FILE="benchmark.svg"
 
 # float subtract_flt(float a, float b);
 subtract_flt() {
-    awk "BEGIN {printf \"%f\", ${1}-${2}; exit(0)}"
+    awk "BEGIN {printf \"%.5f\", ${1}-${2}; exit(0)}"
 }
 
 # int add_int(int a, int b);
@@ -78,8 +78,11 @@ plot_log() {
     set terminal svg;
     set output '${dst}';
     set title '${graph_title}';
+    set key left box;
     set xlabel 'N. of allocations';
     set ylabel 'Time (seconds)';
+    set format y '%.5f';
+    set logscale y 2;
     plot '${src}' using 1:2 smooth bezier with lines title 'libpool',
          '${src}' using 1:3 smooth bezier with lines title 'malloc';
     "
