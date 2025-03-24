@@ -64,6 +64,27 @@ benchmark() {
     echo "${nmemb} ${libpool_time} ${malloc_time}"
 }
 
+# void plot_log(const char* dst, const char* src);
+plot_log() {
+    local dst="$1"
+    local src="$2"
+
+    local graph_title='Performance of libpool vs. malloc'
+    if [ -n "$IGNORE" ]; then
+        graph_title="${graph_title} after ${IGNORE} allocations"
+    fi
+
+    gnuplot -e "
+    set terminal svg;
+    set output '${dst}';
+    set title '${graph_title}';
+    set xlabel 'N. of allocations';
+    set ylabel 'Time (seconds)';
+    plot '${src}' using 1:2 smooth bezier with lines title 'libpool',
+         '${src}' using 1:3 smooth bezier with lines title 'malloc';
+    "
+}
+
 # ------------------------------------------------------------------------------
 
 printf 'Benchmarking [%d..%d] allocations of %d bytes.' "$STEP" "$NMEMB" "$ELEM_SIZE"
@@ -79,22 +100,8 @@ for (( i="$STEP"; i<="$NMEMB"; i+="$STEP" )); do
 done
 printf '\nDone.\n'
 
-
-graph_title='Performance of libpool vs. malloc'
-if [ -n "$IGNORE" ]; then
-    graph_title="${graph_title} after ${IGNORE} allocations"
-fi
-
-gnuplot -e "
-set terminal svg;
-set output '${OUTPUT_FILE}';
-set title '${graph_title}';
-set xlabel 'N. of allocations';
-set ylabel 'Time (seconds)';
-plot '${tmp_file}' using 1:2 smooth bezier with lines title 'libpool',
-     '${tmp_file}' using 1:3 smooth bezier with lines title 'malloc';
-"
+plot_log "$OUTPUT_FILE" "$tmp_file"
 
 if [ -f "$tmp_file" ]; then
-   rm "$tmp_file"
+    rm "$tmp_file"
 fi
