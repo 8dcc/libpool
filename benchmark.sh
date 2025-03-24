@@ -19,7 +19,7 @@
 set -e
 
 IGNORE=100000   # Number of initial allocations that should be ignored.
-NMEMB=1000000   # Number of total allocations.
+NMEMB=500000    # Number of total allocations.
 ELEM_SIZE=10000 # Size of each element.
 STEP=10000      # Number of allocations to be increased each iteration.
 OUTPUT_FILE="benchmark.svg"
@@ -79,7 +79,7 @@ plot_log() {
     set output '${dst}';
     set title '${graph_title}';
     set key left box;
-    set xlabel 'N. of allocations';
+    set xlabel 'N. of allocations (each ${ELEM_SIZE} bytes)';
     set ylabel 'Time (seconds)';
     set format y '%.5f';
     set logscale y 2;
@@ -101,10 +101,12 @@ for (( i="$STEP"; i<="$NMEMB"; i+="$STEP" )); do
     printf '\rCurrently benchmarking %d allocations...' "$i"
     benchmark "$i" >> "$tmp_file"
 done
-printf '\nDone.\n'
+printf "\nLogging finished, plotting to '%s'...\n" "${OUTPUT_FILE}"
 
 plot_log "$OUTPUT_FILE" "$tmp_file"
 
 if [ -f "$tmp_file" ]; then
     rm "$tmp_file"
 fi
+
+printf 'All done.\n'
