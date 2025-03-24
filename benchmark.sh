@@ -75,7 +75,7 @@ plot_log() {
     fi
 
     gnuplot -e "
-    set terminal svg;
+    set terminal svg background '#FFFFFF';
     set output '${dst}';
     set title '${graph_title}';
     set key left box;
