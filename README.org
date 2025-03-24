@@ -133,16 +133,24 @@ Then, run =libpool-test.out=.
 
 * Benchmarking against =malloc=
 
-You can benchmark the library by running =make benchmark=. These are the results
-in my machine:
+You can benchmark the library by running =make benchmark=.
 
 #+begin_src bash
 make benchmark
 # ...
-Benchmarking 1100000 allocations of 10000 bytes. Ignoring first 100000 calls.
-Time when using 'malloc'....: 2.46 - 0.22 = 2.24 seconds
-Time when using 'libpool'...: 0.81 - 0.06 = 0.75 seconds
+# Benchmarking [10000..100000] allocations of 10000 bytes. Ignoring first 100000 calls.
+# ...
+# Logging finished, plotting to 'benchmark.svg'...
+# All done
 #+end_src
+
+These are the results in my machine:
+
+[[file:assets/benchmark_logarithmic.svg]]
+
+Without using a logarithmic scale in the Y axis:
+
+[[file:assets/benchmark.svg]]
 
 You can adjust these values in the [[file:benchmark.sh][benchmark.sh]] script.
 
