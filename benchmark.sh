@@ -26,7 +26,7 @@ OUTPUT_FILE="benchmark.svg"
 
 # float subtract_flt(float a, float b);
 subtract_flt() {
-    awk "BEGIN {printf \"%.2f\", ${1}-${2}; exit(0)}"
+    awk "BEGIN {printf \"%f\", ${1}-${2}; exit(0)}"
 }
 
 # int add_int(int a, int b);
@@ -35,7 +35,7 @@ add_int() {
 }
 
 time_of() {
-    env time -f "%e" "${@}"
+    strace -c "${@}" 2>&1 1>/dev/null | tail -n 1 | awk '{print $2}'
 }
 
 # const char* benchmark(int nmemb);
