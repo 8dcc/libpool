@@ -22,7 +22,9 @@ IGNORE=100000   # Number of initial allocations that should be ignored.
 NMEMB=500000    # Number of total allocations.
 ELEM_SIZE=10000 # Size of each element.
 STEP=10000      # Number of allocations to be increased each iteration.
-OUTPUT_FILE="benchmark.svg"
+
+BENCHMARK_BIN='./benchmark.out'
+OUTPUT_FILE='benchmark.svg'
 
 # float subtract_flt(float a, float b);
 subtract_flt() {
@@ -34,6 +36,7 @@ add_int() {
     echo "$(( "$1" + "$2" ))"
 }
 
+# int time_of(const char* cmd, ...);
 time_of() {
     strace -c "${@}" 2>&1 1>/dev/null | tail -n 1 | awk '{print $2}'
 }
@@ -51,13 +54,13 @@ benchmark() {
         nmemb="$(add_int "$nmemb" "$IGNORE")"
     fi
 
-    libpool_time=$(time_of ./benchmark.out "libpool" "$nmemb" "$ELEM_SIZE" 2>&1)
-    malloc_time=$(time_of ./benchmark.out "malloc" "$nmemb" "$ELEM_SIZE" 2>&1)
+    libpool_time=$(time_of $BENCHMARK_BIN 'libpool' "$nmemb" "$ELEM_SIZE" 2>&1)
+    malloc_time=$(time_of $BENCHMARK_BIN 'malloc' "$nmemb" "$ELEM_SIZE" 2>&1)
 
     if [ -n "$IGNORE" ] && [ "$IGNORE" -gt 0 ]; then
-        libpool_time_ignored=$(time_of ./benchmark.out "libpool" "$IGNORE" "$ELEM_SIZE" 2>&1)
+        libpool_time_ignored=$(time_of $BENCHMARK_BIN 'libpool' "$IGNORE" "$ELEM_SIZE" 2>&1)
         libpool_time=$(subtract_flt "$libpool_time" "$libpool_time_ignored")
-        malloc_time_ignored=$(time_of ./benchmark.out "malloc" "$IGNORE" "$ELEM_SIZE" 2>&1)
+        malloc_time_ignored=$(time_of $BENCHMARK_BIN 'malloc' "$IGNORE" "$ELEM_SIZE" 2>&1)
         malloc_time=$(subtract_flt "$malloc_time" "$malloc_time_ignored")
     fi
 
@@ -90,6 +93,11 @@ plot_log() {
 
 # ------------------------------------------------------------------------------
 
+if [ ! -f "$BENCHMARK_BIN" ]; then
+    echo "$(basename "$0"): Could not find file '$BENCHMARK_BIN'." 1>&2
+    exit 1
+fi
+
 printf 'Benchmarking [%d..%d] allocations of %d bytes.' "$STEP" "$NMEMB" "$ELEM_SIZE"
 if [ -n "$IGNORE" ]; then
     printf ' Ignoring first %d calls.' "$IGNORE"
@@ -109,4 +117,4 @@ if [ -f "$tmp_file" ]; then
     rm "$tmp_file"
 fi
 
-printf 'All done.\n'
+echo 'All done.'
