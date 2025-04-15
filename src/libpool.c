@@ -26,11 +26,11 @@
 #if defined(LIBPOOL_NO_STDLIB)
 PoolAllocFuncPtr pool_ext_alloc = NULL;
 PoolFreeFuncPtr pool_ext_free   = NULL;
-#else
+#else /* !defined(LIBPOOL_NO_STDLIB) */
 #include <stdlib.h>
 PoolAllocFuncPtr pool_ext_alloc = malloc;
 PoolFreeFuncPtr pool_ext_free   = free;
-#endif /* LIBPOOL_NO_STDLIB */
+#endif /* !defined(LIBPOOL_NO_STDLIB) */
 
 #if defined(LIBPOOL_NO_VALGRIND)
 #define VALGRIND_CREATE_MEMPOOL(a, b, c)
@@ -39,10 +39,21 @@ PoolFreeFuncPtr pool_ext_free   = free;
 #define VALGRIND_MEMPOOL_FREE(a, b)
 #define VALGRIND_MAKE_MEM_DEFINED(a, b)
 #define VALGRIND_MAKE_MEM_NOACCESS(a, b)
-#else
+#else /* !defined(LIBPOOL_NO_VALGRIND) */
 #include <valgrind/valgrind.h>
 #include <valgrind/memcheck.h>
-#endif
+#endif /* !defined(LIBPOOL_NO_VALGRIND) */
+
+#if defined(LIBPOOL_NO_ALIGNMENT)
+#define ALIGN2BOUNDARY(ADDR, BOUND) (ADDR)
+#else /* !defined(LIBPOOL_NO_ALIGNMENT) */
+/*
+ * Align the specified size to the specified boundary. For more information,
+ * see: https://8dcc.github.io/reversing/challenge10.html#c-translation
+ */
+#define ALIGN2BOUNDARY(SIZE, BOUNDARY)                                         \
+    (((SIZE) + (BOUNDARY)-1) & ~((BOUNDARY)-1))
+#endif /* !defined(LIBPOOL_NO_ALIGNMENT) */
 
 /*----------------------------------------------------------------------------*/
 
@@ -102,8 +113,15 @@ Pool* pool_new(size_t pool_sz, size_t chunk_sz) {
     char* arr;
     size_t i;
 
-    if (pool_sz == 0 || chunk_sz < sizeof(void*))
+    if (pool_sz == 0)
         return NULL;
+
+#if defined(LIBPOOL_NO_ALIGNMENT)
+    if (chunk_sz < sizeof(void*))
+        return NULL;
+#else  /* !defined(LIBPOOL_NO_ALIGNMENT) */
+    chunk_sz = ALIGN2BOUNDARY(chunk_sz, sizeof(void*));
+#endif /* !defined(LIBPOOL_NO_ALIGNMENT) */
 
     pool = pool_ext_alloc(sizeof(Pool));
     if (pool == NULL)
