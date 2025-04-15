@@ -73,9 +73,7 @@ plot_log() {
     local src="$2"
 
     local graph_title='Performance of libpool vs. malloc'
-    if [ -n "$IGNORE" ]; then
-        graph_title="${graph_title} after ${IGNORE} allocations"
-    fi
+    [ -n "$IGNORE" ] && graph_title="${graph_title} after ${IGNORE} allocations"
 
     gnuplot -e "
     set terminal svg background '#FFFFFF';
@@ -99,22 +97,17 @@ if [ ! -f "$BENCHMARK_BIN" ]; then
 fi
 
 printf 'Benchmarking [%d..%d] allocations of %d bytes.' "$STEP" "$NMEMB" "$ELEM_SIZE"
-if [ -n "$IGNORE" ]; then
-    printf ' Ignoring first %d calls.' "$IGNORE"
-fi
+[ -n "$IGNORE" ] && printf ' Ignoring first %d calls.' "$IGNORE"
 printf '\n'
 
-tmp_file="$(mktemp --tmpdir "libpool-benchmark.XXX.log")"
+tmp_file="$(mktemp --tmpdir 'libpool-benchmark.XXX.log')"
 for (( i="$STEP"; i<="$NMEMB"; i+="$STEP" )); do
     printf '\rCurrently benchmarking %d allocations...' "$i"
     benchmark "$i" >> "$tmp_file"
 done
-printf "\nLogging finished, plotting to '%s'...\n" "${OUTPUT_FILE}"
+printf "\nLogging to '%s' finished, plotting to '%s'...\n" "$tmp_file" "$OUTPUT_FILE"
 
 plot_log "$OUTPUT_FILE" "$tmp_file"
 
-if [ -f "$tmp_file" ]; then
-    rm "$tmp_file"
-fi
-
+[ -f "$tmp_file" ] && rm "$tmp_file"
 echo 'All done.'
