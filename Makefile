@@ -1,6 +1,6 @@
 
 CC=gcc
-CFLAGS=-ansi -Wall -Wextra -Wpedantic -ggdb3
+CFLAGS=-ansi -Wall -Wextra -Wpedantic -Wshadow -ggdb3
 LDLIBS=
 
 BINS=libpool-test.out benchmark.out
