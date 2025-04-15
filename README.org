@@ -113,6 +113,22 @@ support, we will see 111 allocations because it also checked the calls to
 You might need to install some =valgrind-devel= package in your system in order to
 include the necessary headers.
 
+* Alignment
+
+By default, when initializing a new pool with =pool_new=, the chunk sizes will be
+internally aligned to the size of a =void*=, so that all pointers returned by
+=pool_alloc= are also aligned.
+
+In some specific cases, this can lead to unexpected pool sizes, so this behavior
+can be disabled at compile-time by defining =LIBPOOL_NO_ALIGNMENT=.
+
+However, note that, when compiling the library with alignment disabled, the
+=pool_new= function will expect a chunk size greater or equal to the size of a
+=void*=. This is necessary because the implementation uses free chunks to build a
+linked list, which is what makes the library so efficient. If the =chunk_sz=
+parameter of =pool_new= is smaller than =sizeof(void*)=, the function will return
+=NULL=.
+
 * Building the example
 
 Clone the repository and build the project using =make=.
@@ -153,10 +169,3 @@ Without using a logarithmic scale in the Y axis:
 [[file:assets/benchmark.svg]]
 
 You can adjust these values in the [[file:benchmark.sh][benchmark.sh]] script.
-
-* Caveats
-
-When creating a new pool, each element needs to be greater or equal to the size
-of =void*=. This is necessary because the implementation uses free chunks to build
-a linked list, which is what makes the library so efficient. If the =chunk_sz=
-parameter of =pool_new= is smaller than =sizeof(void*)=, it will return =NULL=.
