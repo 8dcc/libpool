@@ -84,8 +84,8 @@ plot_log() {
     set ylabel 'Time (seconds)';
     set format y '%.5f';
     set logscale y 2;
-    plot '${src}' using 1:2 smooth bezier with lines title 'libpool',
-         '${src}' using 1:3 smooth bezier with lines title 'malloc';
+    plot '${src}' using 1:2 smooth mcsplines with lines title 'libpool',
+         '${src}' using 1:3 smooth mcsplines with lines title 'malloc';
     "
 }
 
