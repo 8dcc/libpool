@@ -28,7 +28,7 @@ OUTPUT_FILE='benchmark.svg'
 
 # float subtract_flt(float a, float b);
 subtract_flt() {
-    awk "BEGIN {printf \"%.5f\", ${1}-${2}; exit(0)}"
+    awk "BEGIN { printf \"%.5f\", ((${1}) > (${2})) ? (${1})-(${2}) : \"0.00001\"; exit(0) }"
 }
 
 # int add_int(int a, int b);
