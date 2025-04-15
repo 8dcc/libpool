@@ -1,6 +1,5 @@
-# Doxygen documentation
-/doc/html/
-/doc/latex/
+# Benchmark output
+/*.svg
 
 # Prerequisites
 *.d
