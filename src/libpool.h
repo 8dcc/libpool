@@ -26,7 +26,7 @@ typedef struct Pool Pool;
 
 /*
  * External functions for allocating and freeing system memory. Used by
- * `pool_new' and `pool_close'.
+ * `pool_new' and `pool_detroy'.
  *
  * If `LIBPOOL_NO_STDLIB' is defined, they are set to NULL, so the user must
  * initialize them. Otherwise, their default value is `malloc' and `free', from
@@ -43,7 +43,7 @@ extern PoolFreeFuncPtr pool_ext_free;
  *
  * Notes:
  *   - If the initialization fails, NULL is returned.
- *   - The caller must free the returned pointer using `pool_close'.
+ *   - The caller must free the returned pointer using `pool_destroy'.
  *   - The `chunk_sz' must be greater or equal than `sizeof(void*)'.
  *   - The pool size can be updated with `pool_expand', but the chunk size
  *     cannot be changed.
@@ -63,7 +63,7 @@ bool pool_expand(Pool* pool, size_t extra_sz);
  * data allocated from this the pool becomes unusable. Allows NULL as the
  * `pool' parameter.
  */
-void pool_close(Pool* pool);
+void pool_destroy(Pool* pool);
 
 /*
  * Allocate a fixed-size chunk from the specified pool. If no chunks are

@@ -25,7 +25,7 @@ static void benchmark_libpool(size_t nmemb, size_t size) {
 
     while (ptrs_pos > 0)
         pool_free(pool, ptrs[--ptrs_pos]);
-    pool_close(pool);
+    pool_destroy(pool);
 }
 
 static void benchmark_malloc(size_t nmemb, size_t size) {

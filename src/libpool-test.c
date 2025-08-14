@@ -51,7 +51,7 @@ static void test_pool(Pool* pool) {
     /*
      * Keep allocating until we run out of chunks, to illustrate what happens
      * after too many allocations. We are "leaking" pool memory in this loop,
-     * but it's not really leaked to the system because we will `close' the pool
+     * but it's not really leaked to the system because we will destroy the pool
      * later.
      */
     for (i = 0; i < 35; i++) {
@@ -108,12 +108,12 @@ int main(void) {
     test_pool(pool1);
 
     /*
-     * When we are done, we "close" each pool. All previously allocated data
+     * When we are done, we destroy each pool. All previously allocated data
      * from the pool becomes unusable, and the necessary resources allocated by
      * `pool_new' are freed.
      */
-    pool_close(pool2);
-    pool_close(pool1);
+    pool_destroy(pool2);
+    pool_destroy(pool1);
 
     return 0;
 }

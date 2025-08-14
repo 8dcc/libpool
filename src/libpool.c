@@ -215,7 +215,7 @@ bool pool_expand(Pool* pool, size_t extra_sz) {
  * contain the base address of each chunk array. We free the array, and then the
  * `ArrayStart' structure itself. Lastly, we free the `Pool' structure.
  */
-void pool_close(Pool* pool) {
+void pool_destroy(Pool* pool) {
     ArrayStart* array_start;
     ArrayStart* next;
 
