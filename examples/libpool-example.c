@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "libpool.h"
+#include "../src/libpool.h"
 
 /*
  * We just have to make sure the items we store in the returned pointer are

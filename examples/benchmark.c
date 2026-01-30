@@ -5,7 +5,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "libpool.h"
+
+#include "../src/libpool.h"
 
 #define BUFFERED_PTRS 1000
 
