@@ -16,13 +16,15 @@
  * this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "libpool.h"
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
-/* NOTE: Remember to change this path if you move the header */
-#include "libpool.h"
-
+/*
+ * External allocation functions.
+ */
 #if defined(LIBPOOL_NO_STDLIB)
 PoolAllocFuncPtr pool_ext_alloc = NULL;
 PoolFreeFuncPtr pool_ext_free   = NULL;
@@ -32,27 +34,33 @@ PoolAllocFuncPtr pool_ext_alloc = malloc;
 PoolFreeFuncPtr pool_ext_free   = free;
 #endif /* !defined(LIBPOOL_NO_STDLIB) */
 
+/*
+ * External valgrind macros.
+ */
 #if defined(LIBPOOL_NO_VALGRIND)
-#define VALGRIND_CREATE_MEMPOOL(a, b, c)
-#define VALGRIND_DESTROY_MEMPOOL(a)
-#define VALGRIND_MEMPOOL_ALLOC(a, b, c)
-#define VALGRIND_MEMPOOL_FREE(a, b)
-#define VALGRIND_MAKE_MEM_DEFINED(a, b)
-#define VALGRIND_MAKE_MEM_NOACCESS(a, b)
+#define VALGRIND_CREATE_MEMPOOL(a, b, c) ((void)0)
+#define VALGRIND_DESTROY_MEMPOOL(a)      ((void)0)
+#define VALGRIND_MEMPOOL_ALLOC(a, b, c)  ((void)0)
+#define VALGRIND_MEMPOOL_FREE(a, b)      ((void)0)
+#define VALGRIND_MAKE_MEM_DEFINED(a, b)  ((void)0)
+#define VALGRIND_MAKE_MEM_NOACCESS(a, b) ((void)0)
 #else /* !defined(LIBPOOL_NO_VALGRIND) */
 #include <valgrind/valgrind.h>
 #include <valgrind/memcheck.h>
 #endif /* !defined(LIBPOOL_NO_VALGRIND) */
 
+/*
+ * Alignment macros.
+ *
+ * If alignment is enabled, the 'ALIGN2BOUNDARY' macro will align the specified
+ * size to the specified boundary. For more information, see:
+ * https://8dcc.github.io/reversing/challenge10.html#c-translation
+ */
 #if defined(LIBPOOL_NO_ALIGNMENT)
 #define ALIGN2BOUNDARY(ADDR, BOUND) (ADDR)
 #else /* !defined(LIBPOOL_NO_ALIGNMENT) */
-/*
- * Align the specified size to the specified boundary. For more information,
- * see: https://8dcc.github.io/reversing/challenge10.html#c-translation
- */
 #define ALIGN2BOUNDARY(SIZE, BOUNDARY)                                         \
-    (((SIZE) + (BOUNDARY)-1) & ~((BOUNDARY)-1))
+    (((SIZE) + (BOUNDARY) - 1) & ~((BOUNDARY) - 1))
 #endif /* !defined(LIBPOOL_NO_ALIGNMENT) */
 
 /*----------------------------------------------------------------------------*/
