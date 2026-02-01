@@ -6,16 +6,19 @@ LDLIBS=
 
 #-------------------------------------------------------------------------------
 
-.PHONY: all benchmark clean
+.PHONY: all benchmark test clean
 
 all: libpool-example.out
 
 benchmark: benchmark.out
 	./benchmark.sh
 
+test: libpool-test.out
+	./libpool-test.out
+
 clean:
 	rm -rf obj/*
-	rm -f libpool-example.out benchmark.out
+	rm -f libpool-example.out libpool-test.out benchmark.out
 
 #-------------------------------------------------------------------------------
 
