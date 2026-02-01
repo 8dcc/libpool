@@ -1,5 +1,6 @@
 
 CC=gcc
+CPPFLAGS=
 CFLAGS=-ansi -Wall -Wextra -Wpedantic -Wshadow -ggdb3
 LDLIBS=
 
@@ -13,15 +14,15 @@ benchmark: benchmark.out
 	./benchmark.sh
 
 clean:
-	rm -f obj/*.o
+	rm -rf obj/*
 	rm -f libpool-example.out benchmark.out
 
 #-------------------------------------------------------------------------------
 
 obj/%.c.o: %.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -o $@ -c $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ -c $<
 
 %.out: obj/examples/%.c.o obj/src/libpool.c.o
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $^ $(LDLIBS)
