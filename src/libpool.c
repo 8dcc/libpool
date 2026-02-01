@@ -35,15 +35,45 @@ PoolFreeFuncPtr pool_ext_free   = free;
 #endif /* !defined(LIBPOOL_NO_STDLIB) */
 
 /*
+ * External multithreading functions.
+ */
+#if defined(LIBPOOL_THREAD_SAFE)
+#if defined(LIBPOOL_NO_STDLIB)
+PoolMutexInitFuncPtr pool_ext_mutex_init       = NULL;
+PoolMutexLockFuncPtr pool_ext_mutex_lock       = NULL;
+PoolMutexUnlockFuncPtr pool_ext_mutex_unlock   = NULL;
+PoolMutexDestroyFuncPtr pool_ext_mutex_destroy = NULL;
+#else /* !defined(LIBPOOL_NO_STDLIB) */
+#include <pthread.h>
+static bool pool_ext_mutex_init_impl(pool_ext_mutex_t* mutex) {
+    return pthread_mutex_init(mutex, NULL) == 0;
+}
+static bool pool_ext_mutex_lock_impl(pool_ext_mutex_t* mutex) {
+    return pthread_mutex_lock(mutex) == 0;
+}
+static bool pool_ext_mutex_unlock_impl(pool_ext_mutex_t* mutex) {
+    return pthread_mutex_unlock(mutex) == 0;
+}
+static bool pool_ext_mutex_destroy_impl(pool_ext_mutex_t* mutex) {
+    return pthread_mutex_destroy(mutex) == 0;
+}
+PoolMutexInitFuncPtr pool_ext_mutex_init       = pool_ext_mutex_init_impl;
+PoolMutexLockFuncPtr pool_ext_mutex_lock       = pool_ext_mutex_lock_impl;
+PoolMutexUnlockFuncPtr pool_ext_mutex_unlock   = pool_ext_mutex_unlock_impl;
+PoolMutexDestroyFuncPtr pool_ext_mutex_destroy = pool_ext_mutex_destroy_impl;
+#endif /* !defined(LIBPOOL_NO_STDLIB) */
+#endif /* defined(LIBPOOL_THEAD_SAFE) */
+
+/*
  * External valgrind macros.
  */
 #if defined(LIBPOOL_NO_VALGRIND)
-#define VALGRIND_CREATE_MEMPOOL(a, b, c) ((void)0)
-#define VALGRIND_DESTROY_MEMPOOL(a)      ((void)0)
-#define VALGRIND_MEMPOOL_ALLOC(a, b, c)  ((void)0)
-#define VALGRIND_MEMPOOL_FREE(a, b)      ((void)0)
-#define VALGRIND_MAKE_MEM_DEFINED(a, b)  ((void)0)
-#define VALGRIND_MAKE_MEM_NOACCESS(a, b) ((void)0)
+#define VALGRIND_CREATE_MEMPOOL(A, B, C) ((void)0)
+#define VALGRIND_DESTROY_MEMPOOL(A)      ((void)0)
+#define VALGRIND_MEMPOOL_ALLOC(A, B, C)  ((void)0)
+#define VALGRIND_MEMPOOL_FREE(A, B)      ((void)0)
+#define VALGRIND_MAKE_MEM_DEFINED(A, B)  ((void)0)
+#define VALGRIND_MAKE_MEM_NOACCESS(A, B) ((void)0)
 #else /* !defined(LIBPOOL_NO_VALGRIND) */
 #include <valgrind/valgrind.h>
 #include <valgrind/memcheck.h>
@@ -60,7 +90,7 @@ PoolFreeFuncPtr pool_ext_free   = free;
 #define ALIGN2BOUNDARY(ADDR, BOUND) (ADDR)
 #else /* !defined(LIBPOOL_NO_ALIGNMENT) */
 #define ALIGN2BOUNDARY(SIZE, BOUNDARY)                                         \
-    (((SIZE) + (BOUNDARY) - 1) & ~((BOUNDARY) - 1))
+    (((SIZE) + (BOUNDARY)-1) & ~((BOUNDARY)-1))
 #endif /* !defined(LIBPOOL_NO_ALIGNMENT) */
 
 /*----------------------------------------------------------------------------*/
@@ -93,6 +123,10 @@ struct Pool {
     void* free_chunk;
     ArrayStart* array_starts;
     size_t chunk_sz;
+
+#if defined(LIBPOOL_THREAD_SAFE)
+    pool_ext_mutex_t lock;
+#endif /* defined(LIBPOOL_THREAD_SAFE) */
 };
 
 /*----------------------------------------------------------------------------*/
@@ -148,6 +182,15 @@ Pool* pool_new(size_t pool_sz, size_t chunk_sz) {
         return NULL;
     }
 
+#if defined(LIBPOOL_THREAD_SAFE)
+    if (!pool_ext_mutex_init(&pool->lock)) {
+        pool_ext_free(arr);
+        pool_ext_free(pool->array_starts);
+        pool_ext_free(pool);
+        return NULL;
+    }
+#endif /* defined(LIBPOOL_THREAD_SAFE) */
+
     /*
      * Build the linked list. Use the first N bytes of the free chunks for
      * storing the (hypothetical) `.next' pointer. This is why `chunk_sz' must
@@ -181,6 +224,7 @@ Pool* pool_new(size_t pool_sz, size_t chunk_sz) {
  * 5. Prepend the new `ArrayStart' to the existing linked list of array starts.
  */
 bool pool_expand(Pool* pool, size_t extra_sz) {
+    bool result = true;
     ArrayStart* array_start;
     char* extra_arr;
     size_t i;
@@ -188,16 +232,24 @@ bool pool_expand(Pool* pool, size_t extra_sz) {
     if (pool == NULL || extra_sz <= 0)
         return false;
 
+#if defined(LIBPOOL_THREAD_SAFE)
+    if (!pool_ext_mutex_lock(&pool->lock))
+        return false;
+#endif /* defined(LIBPOOL_THREAD_SAFE) */
+
     VALGRIND_MAKE_MEM_DEFINED(pool, sizeof(Pool));
 
     array_start = pool_ext_alloc(sizeof(ArrayStart));
-    if (array_start == NULL)
-        return false;
+    if (array_start == NULL) {
+        result = false;
+        goto alloc_err;
+    }
 
     extra_arr = pool_ext_alloc(extra_sz * pool->chunk_sz);
     if (extra_arr == NULL) {
         pool_ext_free(array_start);
-        return false;
+        result = false;
+        goto alloc_err;
     }
 
     for (i = 0; i < extra_sz - 1; i++)
@@ -213,9 +265,14 @@ bool pool_expand(Pool* pool, size_t extra_sz) {
 
     VALGRIND_MAKE_MEM_NOACCESS(extra_arr, extra_sz * pool->chunk_sz);
     VALGRIND_MAKE_MEM_NOACCESS(array_start, sizeof(ArrayStart));
+alloc_err:
     VALGRIND_MAKE_MEM_NOACCESS(pool, sizeof(Pool));
 
-    return true;
+#if defined(LIBPOOL_THREAD_SAFE)
+    pool_ext_mutex_unlock(&pool->lock);
+#endif /* defined(LIBPOOL_THREAD_SAFE) */
+
+    return result;
 }
 
 /*
@@ -230,6 +287,11 @@ void pool_destroy(Pool* pool) {
     if (pool == NULL)
         return;
 
+#if defined(LIBPOOL_THREAD_SAFE)
+    if (!pool_ext_mutex_lock(&pool->lock))
+        return;
+#endif /* defined(LIBPOOL_THREAD_SAFE) */
+
     VALGRIND_MAKE_MEM_DEFINED(pool, sizeof(Pool));
 
     array_start = pool->array_starts;
@@ -241,6 +303,11 @@ void pool_destroy(Pool* pool) {
         pool_ext_free(array_start);
         array_start = next;
     }
+
+#if defined(LIBPOOL_THREAD_SAFE)
+    pool_ext_mutex_unlock(&pool->lock);
+    pool_ext_mutex_destroy(&pool->lock);
+#endif /* defined(LIBPOOL_THREAD_SAFE) */
 
     VALGRIND_DESTROY_MEMPOOL(pool);
     pool_ext_free(pool);
@@ -255,14 +322,20 @@ void pool_destroy(Pool* pool) {
  * linked list to the second item of the old list.
  */
 void* pool_alloc(Pool* pool) {
-    void* result;
+    void* result = NULL;
 
     if (pool == NULL)
         return NULL;
+
+#if defined(LIBPOOL_THREAD_SAFE)
+    if (!pool_ext_mutex_lock(&pool->lock))
+        return NULL;
+#endif /* defined(LIBPOOL_THREAD_SAFE) */
+
     VALGRIND_MAKE_MEM_DEFINED(pool, sizeof(Pool));
 
     if (pool->free_chunk == NULL)
-        return NULL;
+        goto done;
     VALGRIND_MAKE_MEM_DEFINED(pool->free_chunk, sizeof(void**));
 
     result           = pool->free_chunk;
@@ -271,6 +344,11 @@ void* pool_alloc(Pool* pool) {
     VALGRIND_MEMPOOL_ALLOC(pool, result, pool->chunk_sz);
     VALGRIND_MAKE_MEM_NOACCESS(pool->free_chunk, sizeof(void**));
     VALGRIND_MAKE_MEM_NOACCESS(pool, sizeof(Pool));
+
+done:
+#if defined(LIBPOOL_THREAD_SAFE)
+    pool_ext_mutex_unlock(&pool->lock);
+#endif /* defined(LIBPOOL_THREAD_SAFE) */
 
     return result;
 }
@@ -283,6 +361,11 @@ void pool_free(Pool* pool, void* ptr) {
     if (pool == NULL || ptr == NULL)
         return;
 
+#if defined(LIBPOOL_THREAD_SAFE)
+    if (!pool_ext_mutex_lock(&pool->lock))
+        return;
+#endif /* defined(LIBPOOL_THREAD_SAFE) */
+
     VALGRIND_MAKE_MEM_DEFINED(pool, sizeof(Pool));
 
     *(void**)ptr     = pool->free_chunk;
@@ -290,4 +373,8 @@ void pool_free(Pool* pool, void* ptr) {
 
     VALGRIND_MAKE_MEM_NOACCESS(pool, sizeof(Pool));
     VALGRIND_MEMPOOL_FREE(pool, ptr);
+
+#if defined(LIBPOOL_THREAD_SAFE)
+    pool_ext_mutex_unlock(&pool->lock);
+#endif /* defined(LIBPOOL_THREAD_SAFE) */
 }
