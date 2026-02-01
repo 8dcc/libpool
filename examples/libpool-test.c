@@ -27,7 +27,7 @@
 #include "test.h"
 
 /*----------------------------------------------------------------------------*/
-/* Tests for pool_new */
+/* Tests for 'pool_new' */
 
 TEST_DECL(pool_new_basic) {
     Pool* pool = pool_new(10, sizeof(void*));
@@ -64,7 +64,7 @@ TEST_DECL(pool_new_single_chunk) {
 }
 
 /*----------------------------------------------------------------------------*/
-/* Tests for pool_alloc */
+/* Tests for 'pool_alloc' */
 
 TEST_DECL(pool_alloc_basic) {
     Pool* pool;
@@ -165,7 +165,7 @@ TEST_DECL(pool_alloc_write_data) {
 }
 
 /*----------------------------------------------------------------------------*/
-/* Tests for pool_free */
+/* Tests for 'pool_free' */
 
 TEST_DECL(pool_free_basic) {
     Pool* pool;
@@ -266,7 +266,7 @@ TEST_DECL(pool_free_out_of_order) {
 }
 
 /*----------------------------------------------------------------------------*/
-/* Tests for pool_expand */
+/* Tests for 'pool_expand' */
 
 TEST_DECL(pool_expand_basic) {
     Pool* pool = pool_new(2, sizeof(void*));
@@ -346,7 +346,7 @@ TEST_DECL(pool_expand_preserves_allocated) {
 }
 
 /*----------------------------------------------------------------------------*/
-/* Tests for pool_destroy */
+/* Tests for 'pool_destroy' */
 
 TEST_DECL(pool_destroy_null) {
     pool_destroy(NULL);
@@ -451,6 +451,9 @@ TEST_DECL(large_pool) {
 
     pool_destroy(pool);
 }
+
+/*----------------------------------------------------------------------------*/
+/* Preprocessor-specific tests */
 
 #if defined(LIBPOOL_NO_ALIGNMENT)
 TEST_DECL(pool_new_small_chunk) {
