@@ -63,6 +63,10 @@ PoolFreeFuncPtr pool_ext_free   = free;
     (((SIZE) + (BOUNDARY) - 1) & ~((BOUNDARY) - 1))
 #endif /* !defined(LIBPOOL_NO_ALIGNMENT) */
 
+#if !defined(LIBPOOL_LOG)
+#define LIBPOOL_LOG(STR) ((void)0)
+#endif /* !defined(LIBPOOL_LOG) */
+
 /*----------------------------------------------------------------------------*/
 
 /*
@@ -121,28 +125,36 @@ Pool* pool_new(size_t pool_sz, size_t chunk_sz) {
     char* arr;
     size_t i;
 
-    if (pool_sz == 0)
+    if (pool_sz == 0) {
+        LIBPOOL_LOG("Invalid pool size.");
         return NULL;
+    }
 
 #if defined(LIBPOOL_NO_ALIGNMENT)
-    if (chunk_sz < sizeof(void*))
+    if (chunk_sz < sizeof(void*)) {
+        LIBPOOL_LOG("No alignment, and small pool size.");
         return NULL;
+    }
 #else  /* !defined(LIBPOOL_NO_ALIGNMENT) */
     chunk_sz = ALIGN2BOUNDARY(chunk_sz, sizeof(void*));
 #endif /* !defined(LIBPOOL_NO_ALIGNMENT) */
 
     pool = pool_ext_alloc(sizeof(Pool));
-    if (pool == NULL)
+    if (pool == NULL) {
+        LIBPOOL_LOG("Failed to allocate 'Pool' structure.");
         return NULL;
+    }
 
     pool->array_starts = pool_ext_alloc(sizeof(ArrayStart));
     if (pool->array_starts == NULL) {
+        LIBPOOL_LOG("Failed to allocate 'ArrayStart' structure.");
         pool_ext_free(pool);
         return NULL;
     }
 
     arr = pool_ext_alloc(pool_sz * chunk_sz);
     if (arr == NULL) {
+        LIBPOOL_LOG("Failed to allocate actual data array.");
         pool_ext_free(pool->array_starts);
         pool_ext_free(pool);
         return NULL;
@@ -185,17 +197,22 @@ bool pool_expand(Pool* pool, size_t extra_sz) {
     char* extra_arr;
     size_t i;
 
-    if (pool == NULL || extra_sz <= 0)
+    if (pool == NULL || extra_sz <= 0) {
+        LIBPOOL_LOG("Invalid pool pointer or extra size.");
         return false;
+    }
 
     VALGRIND_MAKE_MEM_DEFINED(pool, sizeof(Pool));
 
     array_start = pool_ext_alloc(sizeof(ArrayStart));
-    if (array_start == NULL)
+    if (array_start == NULL) {
+        LIBPOOL_LOG("Failed to allocate additional 'ArrayStart' structure.");
         return false;
+    }
 
     extra_arr = pool_ext_alloc(extra_sz * pool->chunk_sz);
     if (extra_arr == NULL) {
+        LIBPOOL_LOG("Failed to allocate additional data array.");
         pool_ext_free(array_start);
         return false;
     }
@@ -227,8 +244,10 @@ void pool_destroy(Pool* pool) {
     ArrayStart* array_start;
     ArrayStart* next;
 
-    if (pool == NULL)
+    if (pool == NULL) {
+        LIBPOOL_LOG("Invalid pool pointer.");
         return;
+    }
 
     VALGRIND_MAKE_MEM_DEFINED(pool, sizeof(Pool));
 
@@ -257,12 +276,16 @@ void pool_destroy(Pool* pool) {
 void* pool_alloc(Pool* pool) {
     void* result;
 
-    if (pool == NULL)
+    if (pool == NULL) {
+        LIBPOOL_LOG("Invalid pool pointer.");
         return NULL;
+    }
     VALGRIND_MAKE_MEM_DEFINED(pool, sizeof(Pool));
 
-    if (pool->free_chunk == NULL)
+    if (pool->free_chunk == NULL) {
+        LIBPOOL_LOG("No free chunks in pool.");
         return NULL;
+    }
     VALGRIND_MAKE_MEM_DEFINED(pool->free_chunk, sizeof(void**));
 
     result           = pool->free_chunk;
@@ -280,8 +303,10 @@ void* pool_alloc(Pool* pool) {
  * in the same order that used when allocating.
  */
 void pool_free(Pool* pool, void* ptr) {
-    if (pool == NULL || ptr == NULL)
+    if (pool == NULL || ptr == NULL) {
+        LIBPOOL_LOG("Invalid pool or data pointer.");
         return;
+    }
 
     VALGRIND_MAKE_MEM_DEFINED(pool, sizeof(Pool));
 
