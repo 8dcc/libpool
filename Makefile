@@ -31,5 +31,5 @@ obj/%.c.o: %.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $^ $(LDLIBS)
 
-libpool-test-mt.out: CPPFLAGS+=-DLIBPOOL_THREAD_SAFE
-libpool-test-mt.out: LDLIBS+=-lpthread
+libpool-test-mt.out: examples/libpool-test-mt.c src/libpool.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -DLIBPOOL_THREAD_SAFE -o $@ $^ -lpthread
