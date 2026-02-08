@@ -196,6 +196,7 @@ Pool* pool_new(size_t pool_sz, size_t chunk_sz) {
 
 #if defined(LIBPOOL_THREAD_SAFE)
     if (!pool_ext_mutex_init(&pool->lock)) {
+        LIBPOOL_LOG("Failed to initialize mutex.");
         pool_ext_free(arr);
         pool_ext_free(pool->array_starts);
         pool_ext_free(pool);
@@ -247,8 +248,10 @@ bool pool_expand(Pool* pool, size_t extra_sz) {
     }
 
 #if defined(LIBPOOL_THREAD_SAFE)
-    if (!pool_ext_mutex_lock(&pool->lock))
+    if (!pool_ext_mutex_lock(&pool->lock)) {
+        LIBPOOL_LOG("Failed to lock mutex.");
         return false;
+    }
 #endif /* defined(LIBPOOL_THREAD_SAFE) */
 
     VALGRIND_MAKE_MEM_DEFINED(pool, sizeof(Pool));
@@ -306,8 +309,10 @@ void pool_destroy(Pool* pool) {
     }
 
 #if defined(LIBPOOL_THREAD_SAFE)
-    if (!pool_ext_mutex_lock(&pool->lock))
+    if (!pool_ext_mutex_lock(&pool->lock)) {
+        LIBPOOL_LOG("Failed to lock mutex.");
         return;
+    }
 #endif /* defined(LIBPOOL_THREAD_SAFE) */
 
     VALGRIND_MAKE_MEM_DEFINED(pool, sizeof(Pool));
@@ -348,8 +353,10 @@ void* pool_alloc(Pool* pool) {
     }
 
 #if defined(LIBPOOL_THREAD_SAFE)
-    if (!pool_ext_mutex_lock(&pool->lock))
+    if (!pool_ext_mutex_lock(&pool->lock)) {
+        LIBPOOL_LOG("Failed to lock mutex.");
         return NULL;
+    }
 #endif /* defined(LIBPOOL_THREAD_SAFE) */
 
     VALGRIND_MAKE_MEM_DEFINED(pool, sizeof(Pool));
@@ -386,8 +393,10 @@ void pool_free(Pool* pool, void* ptr) {
     }
 
 #if defined(LIBPOOL_THREAD_SAFE)
-    if (!pool_ext_mutex_lock(&pool->lock))
+    if (!pool_ext_mutex_lock(&pool->lock)) {
+        LIBPOOL_LOG("Failed to lock mutex.");
         return;
+    }
 #endif /* defined(LIBPOOL_THREAD_SAFE) */
 
     VALGRIND_MAKE_MEM_DEFINED(pool, sizeof(Pool));
