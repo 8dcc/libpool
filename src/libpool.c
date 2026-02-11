@@ -35,27 +35,37 @@ PoolFreeFuncPtr pool_ext_free   = free;
 #endif /* !defined(LIBPOOL_NO_STDLIB) */
 
 /*
- * External multithreading functions.
+ * External multithreading functions and types.
+ *
+ * FIXME: If the mutex type is defined in an external header, it must be
+ * included here as well. Perhaps this source file shound't be aware of
+ * 'POOL_EXT_MUTEX_TYPE' at all, and always deal with 'void*'.
  */
 #if defined(LIBPOOL_THREAD_SAFE)
 #if defined(LIBPOOL_NO_STDLIB)
+#if !defined(POOL_EXT_MUTEX_TYPE)
+#error                                                                         \
+  "POOL_EXT_MUTEX_TYPE must be defined if LIBPOOL_THREAD_SAFE and LIBPOOL_NO_STDLIB are defined."
+#endif /* !defined(POOL_EXT_MUTEX_TYPE) */
+typedef POOL_EXT_MUTEX_TYPE pool_ext_mutex_t;
 PoolMutexInitFuncPtr pool_ext_mutex_init       = NULL;
 PoolMutexLockFuncPtr pool_ext_mutex_lock       = NULL;
 PoolMutexUnlockFuncPtr pool_ext_mutex_unlock   = NULL;
 PoolMutexDestroyFuncPtr pool_ext_mutex_destroy = NULL;
 #else /* !defined(LIBPOOL_NO_STDLIB) */
 #include <pthread.h>
-static bool pool_ext_mutex_init_impl(pool_ext_mutex_t* mutex) {
-    return pthread_mutex_init(mutex, NULL) == 0;
+typedef pthread_mutex_t pool_ext_mutex_t;
+static bool pool_ext_mutex_init_impl(void* mutex) {
+    return pthread_mutex_init((pool_ext_mutex_t*)mutex, NULL) == 0;
 }
-static bool pool_ext_mutex_lock_impl(pool_ext_mutex_t* mutex) {
-    return pthread_mutex_lock(mutex) == 0;
+static bool pool_ext_mutex_lock_impl(void* mutex) {
+    return pthread_mutex_lock((pool_ext_mutex_t*)mutex) == 0;
 }
-static bool pool_ext_mutex_unlock_impl(pool_ext_mutex_t* mutex) {
-    return pthread_mutex_unlock(mutex) == 0;
+static bool pool_ext_mutex_unlock_impl(void* mutex) {
+    return pthread_mutex_unlock((pool_ext_mutex_t*)mutex) == 0;
 }
-static bool pool_ext_mutex_destroy_impl(pool_ext_mutex_t* mutex) {
-    return pthread_mutex_destroy(mutex) == 0;
+static bool pool_ext_mutex_destroy_impl(void* mutex) {
+    return pthread_mutex_destroy((pool_ext_mutex_t*)mutex) == 0;
 }
 PoolMutexInitFuncPtr pool_ext_mutex_init       = pool_ext_mutex_init_impl;
 PoolMutexLockFuncPtr pool_ext_mutex_lock       = pool_ext_mutex_lock_impl;
@@ -136,6 +146,15 @@ struct Pool {
 /*----------------------------------------------------------------------------*/
 
 /*
+ * Ensure that all external function pointers are defined with valid addresses.
+ */
+static bool pool_assert_ext_funcs(void) {
+    return pool_ext_alloc != NULL && pool_ext_free != NULL &&
+           pool_ext_mutex_init != NULL && pool_ext_mutex_lock != NULL &&
+           pool_ext_mutex_unlock != NULL && pool_ext_mutex_destroy != NULL;
+}
+
+/*
  * We use an exteran allocation function (by default `malloc', but can be
  * overwritten by user) to allocate a `Pool' structure, and the array of
  * chunks. You can think of a chunk as the following union:
@@ -172,6 +191,11 @@ Pool* pool_new(size_t pool_sz, size_t chunk_sz) {
 #else  /* !defined(LIBPOOL_NO_ALIGNMENT) */
     chunk_sz = ALIGN2BOUNDARY(chunk_sz, sizeof(void*));
 #endif /* !defined(LIBPOOL_NO_ALIGNMENT) */
+
+    if (!pool_assert_ext_funcs()) {
+        LIBPOOL_LOG("A pointer to an external function is not initialized.");
+        return NULL;
+    }
 
     pool = pool_ext_alloc(sizeof(Pool));
     if (pool == NULL) {

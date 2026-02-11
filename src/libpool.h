@@ -42,24 +42,17 @@ extern PoolFreeFuncPtr pool_ext_free;
  * 'LIBPOOL_THEAD_SAFE' is defined.
  *
  * If `LIBPOOL_NO_STDLIB' is defined, they are set to NULL, so the user must
- * initialize them. Otherwise, their default value are POSIX Thread (pthread)
- * functions.
+ * initialize them. Otherwise, their default values are wrappers to POSIX
+ * Thread (pthread) functions.
+ *
+ * Note that they technically receive a 'void*', but should receive a pointer
+ * to a 'POOL_TEXT_MUTEX_TYPE', as defined when compiling 'libpool.c'.
  */
 #if defined(LIBPOOL_THREAD_SAFE)
-#if defined(LIBPOOL_NO_STDLIB)
-#if !defined(POOL_EXT_MUTEX_TYPE)
-#error                                                                         \
-  "POOL_EXT_MUTEX_TYPE must be defined if LIBPOOL_THREAD_SAFE and LIBPOOL_NO_STDLIB are defined."
-#endif /* !defined(POOL_EXT_MUTEX_TYPE) */
-typedef POOL_EXT_MUTEX_TYPE pool_ext_mutex_t;
-#else /* !defined(LIBPOOL_NO_STDLIB) */
-#include <pthread.h>
-typedef pthread_mutex_t pool_ext_mutex_t;
-#endif /* !defined(LIBPOOL_NO_STDLIB) */
-typedef bool (*PoolMutexInitFuncPtr)(pool_ext_mutex_t*);
-typedef bool (*PoolMutexLockFuncPtr)(pool_ext_mutex_t*);
-typedef bool (*PoolMutexUnlockFuncPtr)(pool_ext_mutex_t*);
-typedef bool (*PoolMutexDestroyFuncPtr)(pool_ext_mutex_t*);
+typedef bool (*PoolMutexInitFuncPtr)(void* mutex);
+typedef bool (*PoolMutexLockFuncPtr)(void* mutex);
+typedef bool (*PoolMutexUnlockFuncPtr)(void* mutex);
+typedef bool (*PoolMutexDestroyFuncPtr)(void* mutex);
 extern PoolMutexInitFuncPtr pool_ext_mutex_init;
 extern PoolMutexLockFuncPtr pool_ext_mutex_lock;
 extern PoolMutexUnlockFuncPtr pool_ext_mutex_unlock;
