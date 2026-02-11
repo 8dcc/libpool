@@ -129,6 +129,26 @@ linked list, which is what makes the library so efficient. If the =chunk_sz=
 parameter of =pool_new= is smaller than =sizeof(void*)=, the function will return
 =NULL=.
 
+* Thread safety
+
+The library can be optionally compiled with multithreading support, allowing the
+user to perform operations on the pool (allocations, frees, expansions) from
+different threads. To enable thread safety, compile the library with
+=LIBPOOL_THREAD_SAFE= defined.
+
+Furthermore, if =LIBPOOL_NO_STDLIB= is defined, the user is responsible for
+assigning 4 function pointers:
+
+- =pool_ext_mutex_new=, which should return a pointer to a unspecified mutex type,
+  which will be used by the other multithreading functions from within each
+  pool.
+- =pool_ext_mutex_destroy=, which should destroy (deinitialize, free, etc.) a
+  mutex pointer, previously allocated through =pool_ext_mutex_new=.
+- =pool_ext_mutex_lock=, which should receive a mutex pointer and lock it to the
+  current thread.
+- =pool_ext_mutex_unlock=, which should receive a previously-locked mutex pointer
+  and unlock it, so that other threads can lock it.
+
 * Building the example
 
 Clone the repository and build the project using =make=.
