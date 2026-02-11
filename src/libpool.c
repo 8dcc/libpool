@@ -35,39 +35,34 @@ PoolFreeFuncPtr pool_ext_free   = free;
 #endif /* !defined(LIBPOOL_NO_STDLIB) */
 
 /*
- * External multithreading functions and types.
- *
- * FIXME: If the mutex type is defined in an external header, it must be
- * included here as well. Perhaps this source file shound't be aware of
- * 'POOL_EXT_MUTEX_TYPE' at all, and always deal with 'void*'.
+ * External multithreading functions.
  */
 #if defined(LIBPOOL_THREAD_SAFE)
 #if defined(LIBPOOL_NO_STDLIB)
-#if !defined(POOL_EXT_MUTEX_TYPE)
-#error                                                                         \
-  "POOL_EXT_MUTEX_TYPE must be defined if LIBPOOL_THREAD_SAFE and LIBPOOL_NO_STDLIB are defined."
-#endif /* !defined(POOL_EXT_MUTEX_TYPE) */
-typedef POOL_EXT_MUTEX_TYPE pool_ext_mutex_t;
-PoolMutexInitFuncPtr pool_ext_mutex_init       = NULL;
+PoolMutexNewFuncPtr pool_ext_mutex_new         = NULL;
 PoolMutexLockFuncPtr pool_ext_mutex_lock       = NULL;
 PoolMutexUnlockFuncPtr pool_ext_mutex_unlock   = NULL;
 PoolMutexDestroyFuncPtr pool_ext_mutex_destroy = NULL;
 #else /* !defined(LIBPOOL_NO_STDLIB) */
 #include <pthread.h>
-typedef pthread_mutex_t pool_ext_mutex_t;
-static bool pool_ext_mutex_init_impl(void* mutex) {
-    return pthread_mutex_init((pool_ext_mutex_t*)mutex, NULL) == 0;
+static void* pool_ext_mutex_new_impl(void) {
+    pthread_mutex_t* mutex = pool_ext_alloc(sizeof(pthread_mutex_t));
+    if (pthread_mutex_init(mutex, NULL) != 0) {
+        pool_ext_free(mutex);
+        return NULL;
+    }
+    return mutex;
 }
 static bool pool_ext_mutex_lock_impl(void* mutex) {
-    return pthread_mutex_lock((pool_ext_mutex_t*)mutex) == 0;
+    return pthread_mutex_lock((pthread_mutex_t*)mutex) == 0;
 }
 static bool pool_ext_mutex_unlock_impl(void* mutex) {
-    return pthread_mutex_unlock((pool_ext_mutex_t*)mutex) == 0;
+    return pthread_mutex_unlock((pthread_mutex_t*)mutex) == 0;
 }
 static bool pool_ext_mutex_destroy_impl(void* mutex) {
-    return pthread_mutex_destroy((pool_ext_mutex_t*)mutex) == 0;
+    return pthread_mutex_destroy((pthread_mutex_t*)mutex) == 0;
 }
-PoolMutexInitFuncPtr pool_ext_mutex_init       = pool_ext_mutex_init_impl;
+PoolMutexNewFuncPtr pool_ext_mutex_new         = pool_ext_mutex_new_impl;
 PoolMutexLockFuncPtr pool_ext_mutex_lock       = pool_ext_mutex_lock_impl;
 PoolMutexUnlockFuncPtr pool_ext_mutex_unlock   = pool_ext_mutex_unlock_impl;
 PoolMutexDestroyFuncPtr pool_ext_mutex_destroy = pool_ext_mutex_destroy_impl;
@@ -139,7 +134,7 @@ struct Pool {
     size_t chunk_sz;
 
 #if defined(LIBPOOL_THREAD_SAFE)
-    pool_ext_mutex_t lock;
+    void* lock;
 #endif /* defined(LIBPOOL_THREAD_SAFE) */
 };
 
@@ -149,9 +144,16 @@ struct Pool {
  * Ensure that all external function pointers are defined with valid addresses.
  */
 static bool pool_assert_ext_funcs(void) {
-    return pool_ext_alloc != NULL && pool_ext_free != NULL &&
-           pool_ext_mutex_init != NULL && pool_ext_mutex_lock != NULL &&
-           pool_ext_mutex_unlock != NULL && pool_ext_mutex_destroy != NULL;
+    if (pool_ext_alloc == NULL || pool_ext_free == NULL)
+        return false;
+
+#if defined(LIBPOOL_THREAD_SAFE)
+    if (pool_ext_mutex_new == NULL || pool_ext_mutex_lock == NULL ||
+        pool_ext_mutex_unlock == NULL || pool_ext_mutex_destroy == NULL)
+        return false;
+#endif /* defined(LIBPOOL_THREAD_SAFE) */
+
+    return true;
 }
 
 /*
@@ -219,8 +221,9 @@ Pool* pool_new(size_t pool_sz, size_t chunk_sz) {
     }
 
 #if defined(LIBPOOL_THREAD_SAFE)
-    if (!pool_ext_mutex_init(&pool->lock)) {
-        LIBPOOL_LOG("Failed to initialize mutex.");
+    pool->lock = pool_ext_mutex_new();
+    if (pool->lock == NULL) {
+        LIBPOOL_LOG("Failed to create and initialize mutex.");
         pool_ext_free(arr);
         pool_ext_free(pool->array_starts);
         pool_ext_free(pool);
@@ -272,7 +275,7 @@ bool pool_expand(Pool* pool, size_t extra_sz) {
     }
 
 #if defined(LIBPOOL_THREAD_SAFE)
-    if (!pool_ext_mutex_lock(&pool->lock)) {
+    if (!pool_ext_mutex_lock(pool->lock)) {
         LIBPOOL_LOG("Failed to lock mutex.");
         return false;
     }
@@ -312,7 +315,7 @@ alloc_err:
     VALGRIND_MAKE_MEM_NOACCESS(pool, sizeof(Pool));
 
 #if defined(LIBPOOL_THREAD_SAFE)
-    pool_ext_mutex_unlock(&pool->lock);
+    pool_ext_mutex_unlock(pool->lock);
 #endif /* defined(LIBPOOL_THREAD_SAFE) */
 
     return result;
@@ -333,7 +336,7 @@ void pool_destroy(Pool* pool) {
     }
 
 #if defined(LIBPOOL_THREAD_SAFE)
-    if (!pool_ext_mutex_lock(&pool->lock)) {
+    if (!pool_ext_mutex_lock(pool->lock)) {
         LIBPOOL_LOG("Failed to lock mutex.");
         return;
     }
@@ -352,8 +355,8 @@ void pool_destroy(Pool* pool) {
     }
 
 #if defined(LIBPOOL_THREAD_SAFE)
-    pool_ext_mutex_unlock(&pool->lock);
-    pool_ext_mutex_destroy(&pool->lock);
+    pool_ext_mutex_unlock(pool->lock);
+    pool_ext_mutex_destroy(pool->lock);
 #endif /* defined(LIBPOOL_THREAD_SAFE) */
 
     VALGRIND_DESTROY_MEMPOOL(pool);
@@ -377,7 +380,7 @@ void* pool_alloc(Pool* pool) {
     }
 
 #if defined(LIBPOOL_THREAD_SAFE)
-    if (!pool_ext_mutex_lock(&pool->lock)) {
+    if (!pool_ext_mutex_lock(pool->lock)) {
         LIBPOOL_LOG("Failed to lock mutex.");
         return NULL;
     }
@@ -400,7 +403,7 @@ void* pool_alloc(Pool* pool) {
 
 done:
 #if defined(LIBPOOL_THREAD_SAFE)
-    pool_ext_mutex_unlock(&pool->lock);
+    pool_ext_mutex_unlock(pool->lock);
 #endif /* defined(LIBPOOL_THREAD_SAFE) */
 
     return result;
@@ -417,7 +420,7 @@ void pool_free(Pool* pool, void* ptr) {
     }
 
 #if defined(LIBPOOL_THREAD_SAFE)
-    if (!pool_ext_mutex_lock(&pool->lock)) {
+    if (!pool_ext_mutex_lock(pool->lock)) {
         LIBPOOL_LOG("Failed to lock mutex.");
         return;
     }
@@ -432,6 +435,6 @@ void pool_free(Pool* pool, void* ptr) {
     VALGRIND_MEMPOOL_FREE(pool, ptr);
 
 #if defined(LIBPOOL_THREAD_SAFE)
-    pool_ext_mutex_unlock(&pool->lock);
+    pool_ext_mutex_unlock(pool->lock);
 #endif /* defined(LIBPOOL_THREAD_SAFE) */
 }
