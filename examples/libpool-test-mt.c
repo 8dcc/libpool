@@ -22,6 +22,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <pthread.h>
 
 #include "../src/libpool.h"
@@ -30,6 +31,27 @@
 #if !defined(LIBPOOL_THREAD_SAFE)
 #error "This test must be compiled with -DLIBPOOL_THREAD_SAFE"
 #endif /* !defined(LIBPOOL_THREAD_SAFE) */
+
+#if defined(LIBPOOL_NO_STDLIB)
+#include <pthread.h>
+static void* mutex_new_impl(void) {
+    pthread_mutex_t* mutex = pool_ext_alloc(sizeof(pthread_mutex_t));
+    if (pthread_mutex_init(mutex, NULL) != 0) {
+        pool_ext_free(mutex);
+        return NULL;
+    }
+    return mutex;
+}
+static bool mutex_lock_impl(void* mutex) {
+    return pthread_mutex_lock(mutex) == 0;
+}
+static bool mutex_unlock_impl(void* mutex) {
+    return pthread_mutex_unlock(mutex) == 0;
+}
+static bool mutex_destroy_impl(void* mutex) {
+    return pthread_mutex_destroy(mutex) == 0;
+}
+#endif /* defined(LIBPOOL_NO_STDLIB) */
 
 /*----------------------------------------------------------------------------*/
 /* Shared state */
@@ -237,6 +259,15 @@ TEST_DECL(concurrent_expand) {
 
 int main(void) {
     printf("Running libpool multithreading tests...\n\n");
+
+#if defined(LIBPOOL_NO_STDLIB)
+    pool_ext_alloc         = malloc;
+    pool_ext_free          = free;
+    pool_ext_mutex_new     = mutex_new_impl;
+    pool_ext_mutex_lock    = mutex_lock_impl;
+    pool_ext_mutex_unlock  = mutex_unlock_impl;
+    pool_ext_mutex_destroy = mutex_destroy_impl;
+#endif /* defined(LIBPOOL_NO_STDLIB) */
 
     TEST_RUN(basic_alloc_free);
     TEST_RUN(contention);
