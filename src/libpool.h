@@ -38,6 +38,27 @@ extern PoolAllocFuncPtr pool_ext_alloc;
 extern PoolFreeFuncPtr pool_ext_free;
 
 /*
+ * External functions for thread-safe operations, only used if
+ * 'LIBPOOL_THEAD_SAFE' is defined.
+ *
+ * If `LIBPOOL_NO_STDLIB' is defined, they are set to NULL, so the user must
+ * initialize them. Otherwise, their default values are wrappers to POSIX
+ * Thread (pthread) functions.
+ */
+#if defined(LIBPOOL_THREAD_SAFE)
+typedef void* (*PoolMutexNewFuncPtr)(void);
+typedef bool (*PoolMutexLockFuncPtr)(void* mutex);
+typedef bool (*PoolMutexUnlockFuncPtr)(void* mutex);
+typedef bool (*PoolMutexDestroyFuncPtr)(void* mutex);
+extern PoolMutexNewFuncPtr pool_ext_mutex_new;
+extern PoolMutexLockFuncPtr pool_ext_mutex_lock;
+extern PoolMutexUnlockFuncPtr pool_ext_mutex_unlock;
+extern PoolMutexDestroyFuncPtr pool_ext_mutex_destroy;
+#endif /* defined(LIBPOOL_THREAD_SAFE) */
+
+/*----------------------------------------------------------------------------*/
+
+/*
  * Allocate and initialize a new `Pool' structure, with the specified number of
  * chunks, each with the specified size.
  *
